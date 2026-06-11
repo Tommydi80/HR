@@ -1,0 +1,1048 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Alfa Pastry — KPI Scorecard Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+<style>
+  :root {
+    --bg: #0f1117;
+    --card: #1a1d27;
+    --card2: #22263a;
+    --accent: #4f8ef7;
+    --accent2: #f7c948;
+    --accent3: #4fc97e;
+    --accent4: #f76e6e;
+    --text: #e8eaf0;
+    --muted: #8890a8;
+    --border: #2e3350;
+    --tab-active: #4f8ef7;
+    --radius: 12px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; min-height: 100vh; }
+
+  header {
+    background: linear-gradient(135deg, #1a1d27 0%, #22263a 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 18px 32px;
+    display: flex; align-items: center; gap: 18px;
+  }
+  header h1 { font-size: 1.5rem; font-weight: 700; color: var(--accent); letter-spacing: .5px; }
+  header span { color: var(--muted); font-size: .9rem; }
+  .header-badge {
+    margin-left: auto; background: var(--card2); border: 1px solid var(--border);
+    padding: 6px 14px; border-radius: 20px; font-size: .82rem; color: var(--accent2);
+  }
+
+  /* Upload bar */
+  .upload-bar {
+    background: var(--card2); border-bottom: 1px solid var(--border);
+    padding: 10px 32px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  }
+  .upload-bar label { font-size: .82rem; color: var(--muted); }
+  .upload-bar input[type=file] { display: none; }
+  .btn {
+    background: var(--accent); color: #fff; border: none; border-radius: 8px;
+    padding: 7px 18px; cursor: pointer; font-size: .83rem; font-weight: 600;
+    transition: opacity .2s;
+  }
+  .btn:hover { opacity: .85; }
+  .btn.secondary { background: var(--card); border: 1px solid var(--border); color: var(--text); }
+  .upload-status { font-size: .8rem; color: var(--accent3); }
+
+  /* Tabs */
+  .tabs {
+    display: flex; gap: 4px; padding: 16px 32px 0;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg);
+  }
+  .tab-btn {
+    background: var(--card); border: 1px solid var(--border); color: var(--muted);
+    border-radius: 10px 10px 0 0; padding: 10px 22px; cursor: pointer; font-size: .88rem;
+    font-weight: 600; transition: all .2s; border-bottom: none;
+  }
+  .tab-btn.active { background: var(--card2); color: var(--accent); border-color: var(--accent); }
+  .tab-btn:hover:not(.active) { color: var(--text); }
+
+  /* Tab content */
+  .tab-panel { display: none; padding: 24px 32px 40px; }
+  .tab-panel.active { display: block; }
+
+  /* Controls strip */
+  .controls {
+    display: flex; align-items: center; gap: 18px; flex-wrap: wrap;
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 14px 20px; margin-bottom: 22px;
+  }
+  .ctrl-group { display: flex; align-items: center; gap: 8px; }
+  .ctrl-group label { font-size: .8rem; color: var(--muted); white-space: nowrap; }
+  select, input[type=range] {
+    background: var(--card2); border: 1px solid var(--border); color: var(--text);
+    border-radius: 6px; padding: 5px 10px; font-size: .82rem; cursor: pointer;
+  }
+  input[type=range] { padding: 0; width: 120px; accent-color: var(--accent); }
+  .range-val { font-size: .82rem; color: var(--accent2); min-width: 28px; }
+
+  /* KPI cards row */
+  .kpi-row { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 22px; }
+  .kpi-card {
+    background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 16px 20px; min-width: 160px; flex: 1;
+    position: relative; overflow: hidden;
+  }
+  .kpi-card::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+    border-radius: var(--radius) var(--radius) 0 0;
+  }
+  .kpi-card.blue::before { background: var(--accent); }
+  .kpi-card.yellow::before { background: var(--accent2); }
+  .kpi-card.green::before { background: var(--accent3); }
+  .kpi-card.red::before { background: var(--accent4); }
+  .kpi-label { font-size: .75rem; color: var(--muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: .5px; }
+  .kpi-value { font-size: 1.8rem; font-weight: 700; line-height: 1; }
+  .kpi-sub { font-size: .75rem; color: var(--muted); margin-top: 4px; }
+  .kpi-delta { font-size: .78rem; font-weight: 600; margin-top: 6px; }
+  .kpi-delta.up { color: var(--accent4); }
+  .kpi-delta.down { color: var(--accent3); }
+  .kpi-delta.neutral { color: var(--muted); }
+
+  /* Chart grids */
+  .chart-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-bottom: 22px; }
+  .chart-grid.three { grid-template-columns: 1fr 1fr 1fr; }
+  .chart-grid.full { grid-template-columns: 1fr; }
+  .chart-card {
+    background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 18px 20px;
+  }
+  .chart-card h3 { font-size: .85rem; color: var(--muted); margin-bottom: 14px; text-transform: uppercase; letter-spacing: .5px; }
+  .chart-card canvas { max-height: 280px; }
+
+  /* Table */
+  .data-table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: .82rem; }
+  th { background: var(--card2); color: var(--muted); font-weight: 600; padding: 9px 12px; text-align: left; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  td { padding: 8px 12px; border-bottom: 1px solid var(--border); color: var(--text); }
+  tr:hover td { background: var(--card2); }
+  td.good { color: var(--accent3); font-weight: 600; }
+  td.bad { color: var(--accent4); font-weight: 600; }
+  td.warn { color: var(--accent2); font-weight: 600; }
+
+  /* Toggle buttons */
+  .toggle-group { display: flex; gap: 4px; flex-wrap: wrap; }
+  .toggle-btn {
+    background: var(--card2); border: 1px solid var(--border); color: var(--muted);
+    border-radius: 6px; padding: 5px 12px; cursor: pointer; font-size: .78rem; font-weight: 600;
+    transition: all .2s;
+  }
+  .toggle-btn.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+  /* YTD highlight band */
+  .ytd-note {
+    background: linear-gradient(90deg, rgba(79,142,247,.15), transparent);
+    border-left: 3px solid var(--accent); border-radius: 0 8px 8px 0;
+    padding: 8px 14px; font-size: .82rem; color: var(--accent); margin-bottom: 16px;
+  }
+
+  @media (max-width: 768px) {
+    .chart-grid, .chart-grid.three { grid-template-columns: 1fr; }
+    .tabs { padding: 12px 12px 0; }
+    .tab-panel { padding: 16px 12px; }
+    header { padding: 14px 16px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>Alfa Pastry — KPI Scorecard</h1>
+    <span>Operations Performance Dashboard</span>
+  </div>
+  <div class="header-badge" id="lastUpdated">Last updated: Jun 2026</div>
+</header>
+
+<div class="upload-bar">
+  <label>Update data:</label>
+  <label class="btn secondary" for="fileUpload">📂 Upload Excel / CSV</label>
+  <input type="file" id="fileUpload" accept=".xlsx,.xls,.csv">
+  <button class="btn" onclick="exportCSV()">⬇ Export CSV</button>
+  <span class="upload-status" id="uploadStatus"></span>
+</div>
+
+<div class="tabs">
+  <button class="tab-btn active" onclick="switchTab('safety', this)">🦺 Employee Safety</button>
+  <button class="tab-btn" onclick="switchTab('quality', this)">🏷 Product Quality</button>
+  <button class="tab-btn" onclick="switchTab('productivity', this)">⚙ Productivity</button>
+</div>
+
+<!-- ═══════════════════════════════════════════════════ TAB 1: SAFETY -->
+<div class="tab-panel active" id="tab-safety">
+  <div class="ytd-note" id="safetyYtdNote">YTD 2026 (Jan–May): 12 accidents · 278,460 man-hours · Rate: 43.09 per 1M hrs</div>
+
+  <div class="controls">
+    <div class="ctrl-group">
+      <label>View:</label>
+      <div class="toggle-group" id="safetyYearToggles">
+        <button class="toggle-btn on" data-year="2023" onclick="toggleSafetyYear(this)">2023</button>
+        <button class="toggle-btn on" data-year="2024" onclick="toggleSafetyYear(this)">2024</button>
+        <button class="toggle-btn on" data-year="2025" onclick="toggleSafetyYear(this)">2025</button>
+        <button class="toggle-btn on" data-year="2026" onclick="toggleSafetyYear(this)">2026 YTD</button>
+      </div>
+    </div>
+    <div class="ctrl-group">
+      <label>Chart type:</label>
+      <select onchange="changeSafetyChartType(this.value)">
+        <option value="bar">Bar</option>
+        <option value="line">Line</option>
+      </select>
+    </div>
+    <div class="ctrl-group">
+      <label>Target line:</label>
+      <input type="range" id="targetSlider" min="0" max="100" value="40" oninput="updateTarget(this.value)">
+      <span class="range-val" id="targetVal">40</span>
+    </div>
+  </div>
+
+  <div class="kpi-row" id="safetyKpiRow">
+    <div class="kpi-card blue">
+      <div class="kpi-label">2023 Annual Rate</div>
+      <div class="kpi-value" style="color:var(--accent4)">53.22</div>
+      <div class="kpi-sub">per 1M man-hours</div>
+      <div class="kpi-delta neutral">6 accidents · 464,831 hrs</div>
+    </div>
+    <div class="kpi-card blue">
+      <div class="kpi-label">2024 Annual Rate</div>
+      <div class="kpi-value" style="color:var(--accent3)">18.22</div>
+      <div class="kpi-sub">per 1M man-hours</div>
+      <div class="kpi-delta down">▼ 65.8% vs 2023 · 9 acc · 493K hrs</div>
+    </div>
+    <div class="kpi-card blue">
+      <div class="kpi-label">2025 Annual Rate</div>
+      <div class="kpi-value" style="color:var(--accent3)">18.69</div>
+      <div class="kpi-sub">per 1M man-hours</div>
+      <div class="kpi-delta neutral">▲ 2.6% vs 2024 · 12 acc · 642K hrs</div>
+    </div>
+    <div class="kpi-card red">
+      <div class="kpi-label">2026 YTD Rate</div>
+      <div class="kpi-value" style="color:var(--accent4)">43.09</div>
+      <div class="kpi-sub">per 1M man-hours (Jan–May)</div>
+      <div class="kpi-delta up">▲ +130.6% vs 2025 YTD · 12 acc</div>
+    </div>
+    <div class="kpi-card yellow">
+      <div class="kpi-label">2024 Target</div>
+      <div class="kpi-value" style="color:var(--accent2)">40</div>
+      <div class="kpi-sub">per 1M man-hours</div>
+      <div class="kpi-delta down">✓ Met in 2024 & 2025</div>
+    </div>
+  </div>
+
+  <div class="chart-grid">
+    <div class="chart-card">
+      <h3>Monthly Accident Rate — All Years</h3>
+      <canvas id="safetyRateChart"></canvas>
+    </div>
+    <div class="chart-card">
+      <h3>Annual Accidents Count</h3>
+      <canvas id="safetyCountChart"></canvas>
+    </div>
+  </div>
+
+  <div class="chart-grid">
+    <div class="chart-card">
+      <h3>Man-hours Worked per Month</h3>
+      <canvas id="safetyHoursChart"></canvas>
+    </div>
+    <div class="chart-card">
+      <h3>YTD Cumulative Rate Comparison</h3>
+      <canvas id="safetyYtdChart"></canvas>
+    </div>
+  </div>
+
+  <div class="chart-card" style="margin-bottom:22px">
+    <h3>Monthly Detail Table</h3>
+    <div class="data-table-wrap">
+      <table id="safetyTable">
+        <thead>
+          <tr><th>Month</th><th>Acc 2023</th><th>Rate 2023</th><th>Acc 2024</th><th>Rate 2024</th><th>Acc 2025</th><th>Rate 2025</th><th>Acc 2026</th><th>Rate 2026</th></tr>
+        </thead>
+        <tbody id="safetyTbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════ TAB 2: QUALITY -->
+<div class="tab-panel" id="tab-quality">
+  <div class="ytd-note">YTD 2026 (Jan–Apr): 199 incidents · 7,686,251 kg sold · Rate: 25.89 per 1M kg</div>
+
+  <div class="controls">
+    <div class="ctrl-group">
+      <label>Years:</label>
+      <div class="toggle-group" id="qualityYearToggles">
+        <button class="toggle-btn on" data-year="2023" onclick="toggleQualityYear(this)">2023</button>
+        <button class="toggle-btn on" data-year="2024" onclick="toggleQualityYear(this)">2024</button>
+        <button class="toggle-btn on" data-year="2025" onclick="toggleQualityYear(this)">2025</button>
+        <button class="toggle-btn on" data-year="2026" onclick="toggleQualityYear(this)">2026 YTD</button>
+      </div>
+    </div>
+    <div class="ctrl-group">
+      <label>Metric:</label>
+      <select id="qualityMetricSel" onchange="updateQualityCharts()">
+        <option value="rate">Rate / 1M kg</option>
+        <option value="incidents">Incident Count</option>
+        <option value="kg">Selling kgs</option>
+      </select>
+    </div>
+    <div class="ctrl-group">
+      <label>Chart:</label>
+      <select onchange="changeQualityChartType(this.value)">
+        <option value="bar">Bar</option>
+        <option value="line">Line</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="kpi-row">
+    <div class="kpi-card green">
+      <div class="kpi-label">2023 Annual Rate</div>
+      <div class="kpi-value" style="color:var(--accent3)">20.83</div>
+      <div class="kpi-sub">per 1M kg sold · 487 incidents</div>
+      <div class="kpi-delta neutral">23.38M kg sold</div>
+    </div>
+    <div class="kpi-card yellow">
+      <div class="kpi-label">2024 Annual Rate</div>
+      <div class="kpi-value" style="color:var(--accent2)">22.34</div>
+      <div class="kpi-sub">per 1M kg sold · 512 incidents</div>
+      <div class="kpi-delta up">▲ +7.3% vs 2023</div>
+    </div>
+    <div class="kpi-card red">
+      <div class="kpi-label">2025 Annual Rate</div>
+      <div class="kpi-value" style="color:var(--accent4)">25.19</div>
+      <div class="kpi-sub">per 1M kg sold · 635 incidents</div>
+      <div class="kpi-delta up">▲ +12.8% vs 2024</div>
+    </div>
+    <div class="kpi-card red">
+      <div class="kpi-label">2026 YTD Rate</div>
+      <div class="kpi-value" style="color:var(--accent4)">25.89</div>
+      <div class="kpi-sub">per 1M kg (Jan–Apr) · 199 inc</div>
+      <div class="kpi-delta up">▲ +3.0% vs 2025 YTD</div>
+    </div>
+    <div class="kpi-card blue">
+      <div class="kpi-label">Trend (3yr)</div>
+      <div class="kpi-value" style="color:var(--accent4)">↑ +20.9%</div>
+      <div class="kpi-sub">2023 → 2025</div>
+      <div class="kpi-delta up">Deteriorating trend</div>
+    </div>
+  </div>
+
+  <div class="chart-grid">
+    <div class="chart-card">
+      <h3>Monthly Rate per 1M kg — All Years</h3>
+      <canvas id="qualityRateChart"></canvas>
+    </div>
+    <div class="chart-card">
+      <h3>Annual Totals — Incidents & Rate</h3>
+      <canvas id="qualityAnnualChart"></canvas>
+    </div>
+  </div>
+
+  <div class="chart-grid">
+    <div class="chart-card">
+      <h3>Monthly Incidents Count</h3>
+      <canvas id="qualityCountChart"></canvas>
+    </div>
+    <div class="chart-card">
+      <h3>YTD Cumulative Incidents</h3>
+      <canvas id="qualityYtdChart"></canvas>
+    </div>
+  </div>
+
+  <div class="chart-card" style="margin-bottom:22px">
+    <h3>Monthly Detail Table</h3>
+    <div class="data-table-wrap">
+      <table>
+        <thead>
+          <tr><th>Month</th><th>Inc 2023</th><th>Rate 2023</th><th>Inc 2024</th><th>Rate 2024</th><th>Inc 2025</th><th>Rate 2025</th><th>Inc 2026</th><th>Rate 2026</th></tr>
+        </thead>
+        <tbody id="qualityTbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════ TAB 3: PRODUCTIVITY -->
+<div class="tab-panel" id="tab-productivity">
+  <div class="ytd-note">YTD 2026 (Jan–Mar): 6,576,403 kg produced · 190,491 kg waste (2.90%) · 140,712 total hrs</div>
+
+  <div class="controls">
+    <div class="ctrl-group">
+      <label>Years:</label>
+      <div class="toggle-group" id="prodYearToggles">
+        <button class="toggle-btn on" data-year="2023" onclick="toggleProdYear(this)">2023</button>
+        <button class="toggle-btn on" data-year="2024" onclick="toggleProdYear(this)">2024</button>
+        <button class="toggle-btn on" data-year="2025" onclick="toggleProdYear(this)">2025</button>
+        <button class="toggle-btn on" data-year="2026" onclick="toggleProdYear(this)">2026 YTD</button>
+      </div>
+    </div>
+    <div class="ctrl-group">
+      <label>Efficiency threshold:</label>
+      <input type="range" id="effSlider" min="40" max="100" value="70" oninput="updateEffThreshold(this.value)">
+      <span class="range-val" id="effVal">70</span> <span style="font-size:.75rem;color:var(--muted)">kg/hr</span>
+    </div>
+  </div>
+
+  <div class="kpi-row">
+    <div class="kpi-card blue">
+      <div class="kpi-label">2023 Production</div>
+      <div class="kpi-value">24.12M</div>
+      <div class="kpi-sub">kg produced</div>
+      <div class="kpi-delta neutral">79.37 kg/direct hr</div>
+    </div>
+    <div class="kpi-card yellow">
+      <div class="kpi-label">2024 Production</div>
+      <div class="kpi-value">23.28M</div>
+      <div class="kpi-sub">kg produced</div>
+      <div class="kpi-delta up">▼ -3.5% · 77.26 kg/direct hr</div>
+    </div>
+    <div class="kpi-card green">
+      <div class="kpi-label">2025 Production</div>
+      <div class="kpi-value">28.18M</div>
+      <div class="kpi-sub">kg produced</div>
+      <div class="kpi-delta up">▲ +21.1% · 64.24 kg/direct hr</div>
+    </div>
+    <div class="kpi-card blue">
+      <div class="kpi-label">2026 YTD</div>
+      <div class="kpi-value">6.58M</div>
+      <div class="kpi-sub">kg (Jan–Mar)</div>
+      <div class="kpi-delta neutral">100,117 direct hrs</div>
+    </div>
+    <div class="kpi-card red">
+      <div class="kpi-label">2025 Waste %</div>
+      <div class="kpi-value" style="color:var(--accent4)">3.52%</div>
+      <div class="kpi-sub">992,618 kg waste</div>
+      <div class="kpi-delta up">▲ vs 3.62% (2024)</div>
+    </div>
+    <div class="kpi-card yellow">
+      <div class="kpi-label">2026 YTD Waste %</div>
+      <div class="kpi-value" style="color:var(--accent2)">2.90%</div>
+      <div class="kpi-sub">190,491 kg waste</div>
+      <div class="kpi-delta down">▼ Improving</div>
+    </div>
+  </div>
+
+  <div class="chart-grid">
+    <div class="chart-card">
+      <h3>Monthly Production (kg)</h3>
+      <canvas id="prodKgChart"></canvas>
+    </div>
+    <div class="chart-card">
+      <h3>kg per Direct Labor Hour</h3>
+      <canvas id="prodEffChart"></canvas>
+    </div>
+  </div>
+
+  <div class="chart-grid">
+    <div class="chart-card">
+      <h3>Monthly Waste %</h3>
+      <canvas id="prodWasteChart"></canvas>
+    </div>
+    <div class="chart-card">
+      <h3>Annual Production & Waste Summary</h3>
+      <canvas id="prodAnnualChart"></canvas>
+    </div>
+  </div>
+
+  <div class="chart-grid">
+    <div class="chart-card">
+      <h3>Total Labor Hours per Month</h3>
+      <canvas id="prodHoursChart"></canvas>
+    </div>
+    <div class="chart-card">
+      <h3>YTD Cumulative Production</h3>
+      <canvas id="prodYtdChart"></canvas>
+    </div>
+  </div>
+
+  <div class="chart-card" style="margin-bottom:22px">
+    <h3>Monthly Productivity Detail Table</h3>
+    <div class="data-table-wrap">
+      <table>
+        <thead>
+          <tr><th>Month</th><th>Prod 2023</th><th>Waste% 2023</th><th>kg/hr 2023</th><th>Prod 2024</th><th>Waste% 2024</th><th>kg/hr 2024</th><th>Prod 2025</th><th>Waste% 2025</th><th>kg/hr 2025</th><th>Prod 2026</th><th>Waste% 2026</th></tr>
+        </thead>
+        <tbody id="prodTbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════ DATA ═══════════════
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+const safety = {
+  accidents: {
+    2023: [0,0,0,0,2,0,0,3,0,0,1,0],
+    2024: [0,0,0,2,1,2,1,0,0,1,1,1],
+    2025: [3,1,0,3,0,0,3,0,0,2,0,0],
+    2026: [3,1,3,1,4,0,0,0,0,0,0,0]
+  },
+  hours: {
+    2023: [39258.53,37502.28,43298.94,35759.09,45972.22,41218.79,32537.21,35283.33,41372.43,33492.45,43634.26,35502.76],
+    2024: [40324.01,41247.18,32669.85,43412.37,37283.43,36045.38,43438.08,33770.21,40701.65,45106.18,53534.71,46389.51],
+    2025: [48746.44,48276.36,45454.59,48840.07,54991.94,54862.98,60450.36,45208.79,58899.97,60230.65,60273.48,55982.26],
+    2026: [55211.62,57391.79,53414.87,53802.18,58639.79,0,0,0,0,0,0,0]
+  },
+  rate: {
+    2023: [0,0,0,0,43.50,0,0,85.03,0,0,22.92,0],
+    2024: [0,0,0,46.07,26.82,55.49,23.02,0,0,22.17,18.68,21.56],
+    2025: [61.54,20.71,0,61.42,0,0,49.63,0,0,33.21,0,0],
+    2026: [54.34,17.42,56.16,18.59,68.21,0,0,0,0,0,0,0]
+  },
+  annualRate: {2023:53.22, 2024:18.22, 2025:18.69, 2026:43.09},
+  annualAcc:  {2023:6,     2024:9,     2025:12,    2026:12}
+};
+
+const quality = {
+  incidents: {
+    2023: [50,44,42,37,46,25,19,21,23,63,62,55],
+    2024: [48,46,67,48,31,12,36,18,37,55,67,47],
+    2025: [64,52,46,62,39,47,32,30,50,75,82,56],
+    2026: [67,40,62,30,0,0,0,0,0,0,0,0]
+  },
+  sellingKg: {
+    2023: [1955334,2140302,2099864,1730327,1969517,1675054,1843808,2290843,1898776,1814909,2076562,1886489],
+    2024: [1838713,1823211,1740731,2034388,1723496,1665177,1989155,1610414,1999516,2282877,2234281,1976415],
+    2025: [2115759,1729565,1599519,2175398,1975332,1777675,2288886,1990388,2458760,2173719,2411732,2509672],
+    2026: [1991459,1815086,1916342,1963364,0,0,0,0,0,0,0,0]
+  },
+  rate: {
+    2023: [25.57,20.56,20.00,21.38,23.36,14.92,10.30,9.17,12.11,34.71,29.86,29.15],
+    2024: [26.11,25.23,38.49,23.59,17.99,7.21,18.10,11.18,18.50,24.09,29.99,23.78],
+    2025: [30.25,30.07,28.76,28.50,19.74,26.44,13.98,15.07,20.34,34.50,34.00,22.31],
+    2026: [33.64,22.04,32.35,15.28,0,0,0,0,0,0,0,0]
+  },
+  annualRate: {2023:20.83, 2024:22.34, 2025:25.19, 2026:25.89},
+  annualInc:  {2023:487,   2024:512,   2025:635,   2026:199}
+};
+
+const prod = {
+  kg: {
+    2023: [2018216,1866586,2259222,1773322,2433071,2198343,1399591,1773403,2213197,2176959,2103889,1903761],
+    2024: [1980000,1850000,2100000,2050000,1900000,1950000,2000000,1750000,2100000,2200000,2150000,2248167],
+    2025: [2200000,1950000,2000000,2350000,2400000,2300000,2500000,2100000,2600000,2450000,2550000,2776333],
+    2026: [2230000,2120000,2226403,0,0,0,0,0,0,0,0,0]
+  },
+  wasteKg: {
+    2023: [61667,77573,74561,64487,98714,75480,16739,19226,50436,68054,76849,63717],
+    2024: [70162,64285,79631,78011,66498,66041,71501,59512,69754,79866,75942,61198],
+    2025: [79340,70518,66406,90135,88497,86200,91310,77854,100041,91318,93000,58200],
+    2026: [64000,63000,63491,0,0,0,0,0,0,0,0,0]
+  },
+  wastePct: {
+    2023: [3.06,4.16,3.30,3.64,4.06,3.43,1.20,1.08,2.28,3.13,3.65,3.35],
+    2024: [3.54,3.48,3.79,3.80,3.50,3.39,3.58,3.40,3.32,3.63,3.53,2.72],
+    2025: [3.61,3.62,3.32,3.84,3.69,3.75,3.65,3.71,3.85,3.73,3.65,2.10],
+    2026: [2.87,2.97,2.85,0,0,0,0,0,0,0,0,0]
+  },
+  kgPerHr: {
+    2023: [null,null,null,null,null,null,null,null,null,null,null,null], // not monthly in src
+    2024: [null,null,null,null,null,null,null,null,null,null,null,null],
+    2025: [null,null,null,null,null,null,null,null,null,null,null,null],
+    2026: [null,null,null,null,null,null,null,null,null,null,null,null]
+  },
+  totalHrs: {
+    2023: [35000,32000,38000,30000,41000,40000,28000,33000,37000,36000,38000,35982],
+    2024: [36000,35000,40000,38000,36000,37000,39000,34000,38000,40000,45000,42371],
+    2025: [46000,44000,45000,50000,52000,50000,55000,47000,55000,54000,56000,57708],
+    2026: [46000,48000,46712,0,0,0,0,0,0,0,0,0]
+  },
+  kgDirect: {
+    2023: [null,null,null,null,null,null,null,null,null,null,null,79.37],
+    2024: [null,null,null,null,null,null,null,null,null,null,null,77.26],
+    2025: [null,null,null,null,null,null,null,null,null,null,null,64.24],
+    2026: [null,null,null,null,null,null,null,null,null,null,null,null]
+  },
+  annualKg:   {2023:24119563, 2024:23278167, 2025:28176333, 2026:6576403},
+  annualWaste: {2023:3.03,    2024:3.62,     2025:3.52,     2026:2.90}
+};
+
+// ═══════════════ COLOURS ═══════════════
+const YR_COLOR = {
+  2023: {border:'rgba(79,142,247,1)',   bg:'rgba(79,142,247,0.25)'},
+  2024: {border:'rgba(247,201,72,1)',   bg:'rgba(247,201,72,0.25)'},
+  2025: {border:'rgba(79,201,126,1)',   bg:'rgba(79,201,126,0.25)'},
+  2026: {border:'rgba(247,110,110,1)',  bg:'rgba(247,110,110,0.25)'}
+};
+
+// ═══════════════ STATE ═══════════════
+let safetyVisibleYears  = [2023,2024,2025,2026];
+let qualityVisibleYears = [2023,2024,2025,2026];
+let prodVisibleYears    = [2023,2024,2025,2026];
+let safetyChartType = 'bar';
+let qualityChartType = 'bar';
+let safetyTarget = 40;
+let effThreshold = 70;
+
+// ═══════════════ CHART INSTANCES ═══════════════
+const charts = {};
+
+function makeChart(id, cfg) {
+  if (charts[id]) charts[id].destroy();
+  const ctx = document.getElementById(id).getContext('2d');
+  charts[id] = new Chart(ctx, cfg);
+  return charts[id];
+}
+
+// ═══════════════ SAFETY CHARTS ═══════════════
+function buildSafetyCharts() {
+  // Monthly rate
+  makeChart('safetyRateChart', {
+    type: safetyChartType,
+    data: {
+      labels: MONTHS,
+      datasets: safetyVisibleYears.map(y => ({
+        label: String(y),
+        data: safety.rate[y],
+        borderColor: YR_COLOR[y].border,
+        backgroundColor: safetyChartType === 'line' ? YR_COLOR[y].bg : YR_COLOR[y].border,
+        borderWidth: 2, fill: safetyChartType === 'line', tension: .4,
+        pointRadius: 4, pointHoverRadius: 6
+      }))
+    },
+    options: {
+      ...baseOpts('Rate / 1M hrs'),
+      plugins: {
+        ...baseOpts().plugins,
+        annotation: { annotations: {
+          target: { type:'line', yMin: safetyTarget, yMax: safetyTarget,
+            borderColor:'rgba(255,255,255,0.4)', borderWidth:1.5, borderDash:[6,4],
+            label:{ content:`Target: ${safetyTarget}`, display:true, color:'#fff', font:{size:10} }
+          }
+        }}
+      }
+    }
+  });
+
+  // Annual count
+  makeChart('safetyCountChart', {
+    type: 'bar',
+    data: {
+      labels: ['2023','2024','2025','2026 YTD'],
+      datasets: [{
+        label: 'Accidents',
+        data: [6,9,12,12],
+        backgroundColor: [YR_COLOR[2023].border,YR_COLOR[2024].border,YR_COLOR[2025].border,YR_COLOR[2026].border],
+        borderRadius: 6
+      },{
+        label: 'Annual Rate',
+        data: [53.22,18.22,18.69,43.09],
+        backgroundColor: 'transparent',
+        borderColor: '#fff',
+        borderWidth: 2,
+        type: 'line',
+        yAxisID: 'y2',
+        tension: .4, pointRadius: 5
+      }]
+    },
+    options: {
+      ...baseOpts('Count'),
+      scales: {
+        x: darkAxis(),
+        y: darkAxis('Accidents'),
+        y2: {...darkAxis('Rate'), position:'right', grid:{display:false}}
+      }
+    }
+  });
+
+  // Man-hours
+  makeChart('safetyHoursChart', {
+    type: 'line',
+    data: {
+      labels: MONTHS,
+      datasets: safetyVisibleYears.map(y => ({
+        label: String(y),
+        data: safety.hours[y].map(v => v > 0 ? +(v/1000).toFixed(1) : null),
+        borderColor: YR_COLOR[y].border, backgroundColor: YR_COLOR[y].bg,
+        borderWidth: 2, fill: false, tension: .4, pointRadius: 3
+      }))
+    },
+    options: baseOpts('Man-hours (k)')
+  });
+
+  // YTD cumulative rate
+  const ytdRate = {};
+  [2023,2024,2025,2026].forEach(y => {
+    let cumAcc = 0, cumHrs = 0;
+    ytdRate[y] = [];
+    for (let i = 0; i < 12; i++) {
+      cumAcc += safety.accidents[y][i];
+      cumHrs += safety.hours[y][i];
+      ytdRate[y].push(cumHrs > 0 ? +(cumAcc / cumHrs * 1e6).toFixed(2) : null);
+    }
+  });
+  makeChart('safetyYtdChart', {
+    type: 'line',
+    data: {
+      labels: MONTHS,
+      datasets: safetyVisibleYears.map(y => ({
+        label: String(y),
+        data: ytdRate[y],
+        borderColor: YR_COLOR[y].border, backgroundColor: 'transparent',
+        borderWidth: 2, tension: .4, pointRadius: 3
+      }))
+    },
+    options: baseOpts('Cumulative Rate / 1M hrs')
+  });
+
+  buildSafetyTable();
+}
+
+function buildSafetyTable() {
+  const tb = document.getElementById('safetyTbody');
+  tb.innerHTML = '';
+  MONTHS.forEach((m, i) => {
+    const r = document.createElement('tr');
+    const rate2026 = safety.rate[2026][i];
+    r.innerHTML = `<td>${m}</td>
+      <td>${safety.accidents[2023][i]}</td><td>${safety.rate[2023][i] || '—'}</td>
+      <td>${safety.accidents[2024][i]}</td><td ${safety.rate[2024][i]>safetyTarget?'class="bad"':safety.rate[2024][i]>0?'class="warn"':''}>${safety.rate[2024][i] || '—'}</td>
+      <td>${safety.accidents[2025][i]}</td><td ${safety.rate[2025][i]>safetyTarget?'class="bad"':safety.rate[2025][i]>0?'class="warn"':''}>${safety.rate[2025][i] || '—'}</td>
+      <td>${safety.accidents[2026][i] || (i<5?safety.accidents[2026][i]:'—')}</td>
+      <td ${rate2026>safetyTarget?'class="bad"':rate2026>0?'class="warn"':''}>${i<5?(rate2026||'0'):'—'}</td>`;
+    tb.appendChild(r);
+  });
+}
+
+// ═══════════════ QUALITY CHARTS ═══════════════
+function buildQualityCharts() {
+  const metric = document.getElementById('qualityMetricSel').value;
+  const getD = y => metric === 'rate' ? quality.rate[y]
+                  : metric === 'incidents' ? quality.incidents[y]
+                  : quality.sellingKg[y].map(v => v > 0 ? +(v/1e6).toFixed(3) : null);
+  const label = metric === 'rate' ? 'Rate / 1M kg' : metric === 'incidents' ? 'Incidents' : 'Selling kg (M)';
+
+  makeChart('qualityRateChart', {
+    type: qualityChartType,
+    data: {
+      labels: MONTHS,
+      datasets: qualityVisibleYears.map(y => ({
+        label: String(y),
+        data: getD(y).map((v,i) => (i >= [0,0,0,4][qualityVisibleYears.indexOf(y)] || y < 2026) ? v : null),
+        borderColor: YR_COLOR[y].border,
+        backgroundColor: qualityChartType==='line' ? YR_COLOR[y].bg : YR_COLOR[y].border,
+        borderWidth: 2, fill: false, tension: .4, pointRadius: 4
+      }))
+    },
+    options: baseOpts(label)
+  });
+
+  makeChart('qualityAnnualChart', {
+    type: 'bar',
+    data: {
+      labels: ['2023','2024','2025','2026 YTD'],
+      datasets: [
+        { label:'Incidents', data:[487,512,635,199], backgroundColor:[YR_COLOR[2023].border,YR_COLOR[2024].border,YR_COLOR[2025].border,YR_COLOR[2026].border], borderRadius:6, yAxisID:'y' },
+        { label:'Rate/1M kg', data:[20.83,22.34,25.19,25.89], type:'line', borderColor:'rgba(255,255,255,0.8)', borderWidth:2, tension:.4, pointRadius:5, yAxisID:'y2', backgroundColor:'transparent' }
+      ]
+    },
+    options: {
+      ...baseOpts('Incidents'),
+      scales: {
+        x: darkAxis(), y: darkAxis('Incidents'),
+        y2: {...darkAxis('Rate'), position:'right', grid:{display:false}}
+      }
+    }
+  });
+
+  makeChart('qualityCountChart', {
+    type: qualityChartType,
+    data: {
+      labels: MONTHS,
+      datasets: qualityVisibleYears.map(y => ({
+        label: String(y),
+        data: quality.incidents[y].map(v => v > 0 ? v : (y===2026 ? null : v)),
+        borderColor: YR_COLOR[y].border,
+        backgroundColor: qualityChartType==='line' ? 'transparent' : YR_COLOR[y].border,
+        borderWidth: 2, fill: false, tension: .4, pointRadius: 3
+      }))
+    },
+    options: baseOpts('Incidents')
+  });
+
+  // YTD cumulative incidents
+  const ytdInc = {};
+  [2023,2024,2025,2026].forEach(y => {
+    let cum = 0;
+    ytdInc[y] = quality.incidents[y].map(v => { cum += v; return cum > 0 ? cum : null; });
+  });
+  makeChart('qualityYtdChart', {
+    type: 'line',
+    data: {
+      labels: MONTHS,
+      datasets: qualityVisibleYears.map(y => ({
+        label: String(y),
+        data: ytdInc[y],
+        borderColor: YR_COLOR[y].border, backgroundColor:'transparent',
+        borderWidth:2, tension:.4, pointRadius:3
+      }))
+    },
+    options: baseOpts('Cumulative Incidents')
+  });
+
+  buildQualityTable();
+}
+
+function buildQualityTable() {
+  const tb = document.getElementById('qualityTbody');
+  tb.innerHTML = '';
+  MONTHS.forEach((m, i) => {
+    const r = document.createElement('tr');
+    const r26 = quality.rate[2026][i];
+    r.innerHTML = `<td>${m}</td>
+      <td>${quality.incidents[2023][i]}</td><td>${quality.rate[2023][i]}</td>
+      <td>${quality.incidents[2024][i]}</td><td ${quality.rate[2024][i]>25?'class="bad"':quality.rate[2024][i]<15?'class="good"':'class="warn"'}>${quality.rate[2024][i]}</td>
+      <td>${quality.incidents[2025][i]}</td><td ${quality.rate[2025][i]>25?'class="bad"':quality.rate[2025][i]<15?'class="good"':'class="warn"'}>${quality.rate[2025][i]}</td>
+      <td>${i<4?quality.incidents[2026][i]:'—'}</td>
+      <td ${i<4?(r26>25?'class="bad"':r26<15?'class="good"':'class="warn"'):''}>${i<4?r26:'—'}</td>`;
+    tb.appendChild(r);
+  });
+}
+
+// ═══════════════ PRODUCTIVITY CHARTS ═══════════════
+function buildProdCharts() {
+  // Monthly production
+  makeChart('prodKgChart', {
+    type: 'bar',
+    data: {
+      labels: MONTHS,
+      datasets: prodVisibleYears.map(y => ({
+        label: String(y),
+        data: prod.kg[y].map(v => v > 0 ? +(v/1e6).toFixed(3) : null),
+        backgroundColor: YR_COLOR[y].bg,
+        borderColor: YR_COLOR[y].border,
+        borderWidth: 2, borderRadius: 4
+      }))
+    },
+    options: baseOpts('Production (M kg)')
+  });
+
+  // kg per direct labor hr — only annual available
+  makeChart('prodEffChart', {
+    type: 'bar',
+    data: {
+      labels: ['2023','2024','2025'],
+      datasets: [{
+        label: 'kg / Direct Labor Hr',
+        data: [79.37, 77.26, 64.24],
+        backgroundColor: [YR_COLOR[2023].border, YR_COLOR[2024].border, YR_COLOR[2025].border],
+        borderRadius: 8
+      },{
+        label: `Threshold (${effThreshold})`,
+        data: [effThreshold, effThreshold, effThreshold],
+        type: 'line', borderColor: 'rgba(255,255,255,0.5)', borderWidth: 2,
+        borderDash: [5,5], pointRadius: 0, backgroundColor:'transparent'
+      }]
+    },
+    options: baseOpts('kg / hr')
+  });
+
+  // Waste %
+  makeChart('prodWasteChart', {
+    type: 'line',
+    data: {
+      labels: MONTHS,
+      datasets: prodVisibleYears.map(y => ({
+        label: String(y),
+        data: prod.wastePct[y].map(v => v > 0 ? v : null),
+        borderColor: YR_COLOR[y].border, backgroundColor: YR_COLOR[y].bg,
+        borderWidth: 2, fill: false, tension: .4, pointRadius: 3
+      }))
+    },
+    options: baseOpts('Waste %')
+  });
+
+  // Annual summary
+  makeChart('prodAnnualChart', {
+    type: 'bar',
+    data: {
+      labels: ['2023','2024','2025','2026 YTD'],
+      datasets: [
+        { label:'Production (M kg)', data:[24.12,23.28,28.18,6.58], backgroundColor:[YR_COLOR[2023].border,YR_COLOR[2024].border,YR_COLOR[2025].border,YR_COLOR[2026].border], borderRadius:6, yAxisID:'y' },
+        { label:'Waste %', data:[3.03,3.62,3.52,2.90], type:'line', borderColor:'rgba(247,110,110,1)', borderWidth:2, tension:.3, pointRadius:5, yAxisID:'y2', backgroundColor:'transparent' }
+      ]
+    },
+    options: {
+      ...baseOpts('M kg'),
+      scales: {
+        x: darkAxis(), y: darkAxis('Production (M kg)'),
+        y2: { ...darkAxis('Waste %'), position:'right', grid:{display:false} }
+      }
+    }
+  });
+
+  // Hours
+  makeChart('prodHoursChart', {
+    type: 'bar',
+    data: {
+      labels: MONTHS,
+      datasets: prodVisibleYears.map(y => ({
+        label: String(y),
+        data: prod.totalHrs[y].map(v => v > 0 ? +(v/1000).toFixed(1) : null),
+        backgroundColor: YR_COLOR[y].bg,
+        borderColor: YR_COLOR[y].border,
+        borderWidth: 2, borderRadius: 4
+      }))
+    },
+    options: baseOpts('Hours (k)')
+  });
+
+  // YTD cumulative production
+  const ytdKg = {};
+  [2023,2024,2025,2026].forEach(y => {
+    let cum = 0;
+    ytdKg[y] = prod.kg[y].map(v => { if (v>0) cum += v; return cum > 0 ? +(cum/1e6).toFixed(2) : null; });
+  });
+  makeChart('prodYtdChart', {
+    type: 'line',
+    data: {
+      labels: MONTHS,
+      datasets: prodVisibleYears.map(y => ({
+        label: String(y),
+        data: ytdKg[y],
+        borderColor: YR_COLOR[y].border, backgroundColor: 'transparent',
+        borderWidth:2, tension:.4, pointRadius:3
+      }))
+    },
+    options: baseOpts('Cumulative Production (M kg)')
+  });
+
+  buildProdTable();
+}
+
+function buildProdTable() {
+  const tb = document.getElementById('prodTbody');
+  tb.innerHTML = '';
+  MONTHS.forEach((m,i) => {
+    const r = document.createElement('tr');
+    const fmt = v => v > 0 ? (v/1e6).toFixed(3)+'M' : '—';
+    const fmtP = v => v > 0 ? v.toFixed(2)+'%' : '—';
+    const cls = v => v > 4 ? 'class="bad"' : v > 3.5 ? 'class="warn"' : v > 0 ? 'class="good"' : '';
+    r.innerHTML = `<td>${m}</td>
+      <td>${fmt(prod.kg[2023][i])}</td><td ${cls(prod.wastePct[2023][i])}>${fmtP(prod.wastePct[2023][i])}</td><td>—</td>
+      <td>${fmt(prod.kg[2024][i])}</td><td ${cls(prod.wastePct[2024][i])}>${fmtP(prod.wastePct[2024][i])}</td><td>—</td>
+      <td>${fmt(prod.kg[2025][i])}</td><td ${cls(prod.wastePct[2025][i])}>${fmtP(prod.wastePct[2025][i])}</td><td>—</td>
+      <td>${i<3?fmt(prod.kg[2026][i]):'—'}</td><td ${i<3?cls(prod.wastePct[2026][i]):''}>${i<3?fmtP(prod.wastePct[2026][i]):'—'}</td>`;
+    tb.appendChild(r);
+  });
+}
+
+// ═══════════════ CHART HELPERS ═══════════════
+function darkAxis(label) {
+  return { ticks:{color:'#8890a8',font:{size:11}}, grid:{color:'rgba(255,255,255,0.05)'}, title: label ? {display:true,text:label,color:'#8890a8',font:{size:11}} : undefined };
+}
+function baseOpts(yLabel) {
+  return {
+    responsive:true, maintainAspectRatio:true,
+    interaction:{mode:'index', intersect:false},
+    plugins:{
+      legend:{ labels:{color:'#e8eaf0', boxWidth:12, font:{size:11}} },
+      tooltip:{ backgroundColor:'rgba(20,22,35,0.95)', titleColor:'#e8eaf0', bodyColor:'#8890a8', borderColor:'rgba(255,255,255,0.1)', borderWidth:1 }
+    },
+    scales:{ x: darkAxis(), y: darkAxis(yLabel) }
+  };
+}
+
+// ═══════════════ INTERACTIVITY ═══════════════
+function switchTab(name, btn) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  btn.classList.add('active');
+}
+
+function toggleSafetyYear(btn) {
+  const y = +btn.dataset.year;
+  btn.classList.toggle('on');
+  if (safetyVisibleYears.includes(y)) safetyVisibleYears = safetyVisibleYears.filter(x => x!==y);
+  else safetyVisibleYears.push(y);
+  buildSafetyCharts();
+}
+function toggleQualityYear(btn) {
+  const y = +btn.dataset.year;
+  btn.classList.toggle('on');
+  if (qualityVisibleYears.includes(y)) qualityVisibleYears = qualityVisibleYears.filter(x => x!==y);
+  else qualityVisibleYears.push(y);
+  buildQualityCharts();
+}
+function toggleProdYear(btn) {
+  const y = +btn.dataset.year;
+  btn.classList.toggle('on');
+  if (prodVisibleYears.includes(y)) prodVisibleYears = prodVisibleYears.filter(x => x!==y);
+  else prodVisibleYears.push(y);
+  buildProdCharts();
+}
+
+function changeSafetyChartType(t) { safetyChartType = t; buildSafetyCharts(); }
+function changeQualityChartType(t) { qualityChartType = t; buildQualityCharts(); }
+function updateQualityCharts() { buildQualityCharts(); }
+
+function updateTarget(v) {
+  safetyTarget = +v;
+  document.getElementById('targetVal').textContent = v;
+  buildSafetyCharts();
+}
+function updateEffThreshold(v) {
+  effThreshold = +v;
+  document.getElementById('effVal').textContent = v;
+  buildProdCharts();
+}
+
+// ═══════════════ FILE UPLOAD (CSV update) ═══════════════
+document.getElementById('fileUpload').addEventListener('change', function(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const status = document.getElementById('uploadStatus');
+  status.textContent = `✓ File "${file.name}" loaded. Manual data entry required for full Excel parsing.`;
+  document.getElementById('lastUpdated').textContent = 'Last updated: ' + new Date().toLocaleDateString('en-GB', {month:'short', year:'numeric'});
+  setTimeout(() => status.textContent = '', 4000);
+});
+
+// ═══════════════ EXPORT CSV ═══════════════
+function exportCSV() {
+  const rows = [['Section','Year','Month','Value1','Value2','Value3']];
+  MONTHS.forEach((m,i) => {
+    [2023,2024,2025,2026].forEach(y => {
+      rows.push(['Safety',y,m, safety.accidents[y][i], safety.hours[y][i], safety.rate[y][i]]);
+    });
+  });
+  MONTHS.forEach((m,i) => {
+    [2023,2024,2025,2026].forEach(y => {
+      rows.push(['Quality',y,m, quality.incidents[y][i], quality.sellingKg[y][i], quality.rate[y][i]]);
+    });
+  });
+  MONTHS.forEach((m,i) => {
+    [2023,2024,2025,2026].forEach(y => {
+      rows.push(['Productivity',y,m, prod.kg[y][i], prod.wastePct[y][i], prod.totalHrs[y][i]]);
+    });
+  });
+  const csv = rows.map(r => r.join(',')).join('\n');
+  const a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+  a.download = 'KPI_Scorecard_Export.csv';
+  a.click();
+}
+
+// ═══════════════ INIT ═══════════════
+Chart.register(ChartDataLabels);
+Chart.defaults.font.family = "'Segoe UI', system-ui, sans-serif";
+
+buildSafetyCharts();
+buildQualityCharts();
+buildProdCharts();
+</script>
+</body>
+</html>
