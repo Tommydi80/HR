@@ -745,14 +745,14 @@ function buildSafety(){
   const n=monthTo('safMonthTo');
   const lbl=MONTHS.slice(0,n);
 
-  mkChart('safRateChart',{type:safChartType,data:{labels:lbl,datasets:safVis.map(y=>({
+  const targetDs={label:`Target (${safTargetVal})`,data:Array(n).fill(safTargetVal),type:'line',
+    borderColor:'rgba(255,220,80,.7)',borderWidth:1.5,borderDash:[6,4],pointRadius:0,
+    backgroundColor:'transparent',order:0};
+  mkChart('safRateChart',{type:safChartType,data:{labels:lbl,datasets:[...safVis.map(y=>({
     label:String(y),data:cutAt(D.safety.rate[y],n),
     borderColor:C[y].b,backgroundColor:safChartType==='line'?C[y].bg:C[y].b,
     borderWidth:2,fill:safChartType==='line',tension:.4,pointRadius:3,borderRadius:safChartType==='bar'?4:0
-  }))},options:{...baseOpts('Rate / 1M hrs'),plugins:{...baseOpts().plugins,
-    annotation:{annotations:{target:{type:'line',yMin:safTargetVal,yMax:safTargetVal,
-      borderColor:'rgba(255,255,255,.4)',borderWidth:1.5,borderDash:[5,4],
-      label:{content:'Target: '+safTargetVal,display:true,color:'#e8eaf0',font:{size:9},position:'end'}}}}}}});
+  })),targetDs]},options:baseOpts('Rate / 1M hrs')});
 
   // YTD cumulative rate
   const ytdR={};
