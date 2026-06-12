@@ -3,1046 +3,954 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Alfa Pastry — KPI Scorecard Dashboard</title>
+<title>Alfa Pastry — KPI Scorecard</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 <style>
-  :root {
-    --bg: #0f1117;
-    --card: #1a1d27;
-    --card2: #22263a;
-    --accent: #4f8ef7;
-    --accent2: #f7c948;
-    --accent3: #4fc97e;
-    --accent4: #f76e6e;
-    --text: #e8eaf0;
-    --muted: #8890a8;
-    --border: #2e3350;
-    --tab-active: #4f8ef7;
-    --radius: 12px;
-  }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; min-height: 100vh; }
+:root {
+  --bg:#0e1018; --card:#161923; --card2:#1e2235; --card3:#252a40;
+  --accent:#4f8ef7; --a2:#f7c948; --a3:#4fc97e; --a4:#f76e6e; --a5:#c084fc;
+  --text:#e8eaf0; --muted:#7a829e; --border:#272d48; --radius:14px;
+  --shadow:0 4px 24px rgba(0,0,0,.4);
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;min-height:100vh;}
 
-  header {
-    background: linear-gradient(135deg, #1a1d27 0%, #22263a 100%);
-    border-bottom: 1px solid var(--border);
-    padding: 18px 32px;
-    display: flex; align-items: center; gap: 18px;
-  }
-  header h1 { font-size: 1.5rem; font-weight: 700; color: var(--accent); letter-spacing: .5px; }
-  header span { color: var(--muted); font-size: .9rem; }
-  .header-badge {
-    margin-left: auto; background: var(--card2); border: 1px solid var(--border);
-    padding: 6px 14px; border-radius: 20px; font-size: .82rem; color: var(--accent2);
-  }
+/* ── HEADER ── */
+header{
+  background:linear-gradient(135deg,#161923 0%,#1e2235 100%);
+  border-bottom:1px solid var(--border);
+  padding:16px 32px;display:flex;align-items:center;gap:16px;position:sticky;top:0;z-index:100;
+}
+.logo{width:36px;height:36px;background:var(--accent);border-radius:10px;
+  display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0;}
+header h1{font-size:1.3rem;font-weight:700;color:#fff;letter-spacing:.3px;}
+header p{font-size:.78rem;color:var(--muted);}
+.header-right{margin-left:auto;display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.badge{background:var(--card2);border:1px solid var(--border);padding:5px 14px;
+  border-radius:20px;font-size:.78rem;color:var(--a2);}
+.badge.green{color:var(--a3);}
+.badge.red{color:var(--a4);}
 
-  /* Upload bar */
-  .upload-bar {
-    background: var(--card2); border-bottom: 1px solid var(--border);
-    padding: 10px 32px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
-  }
-  .upload-bar label { font-size: .82rem; color: var(--muted); }
-  .upload-bar input[type=file] { display: none; }
-  .btn {
-    background: var(--accent); color: #fff; border: none; border-radius: 8px;
-    padding: 7px 18px; cursor: pointer; font-size: .83rem; font-weight: 600;
-    transition: opacity .2s;
-  }
-  .btn:hover { opacity: .85; }
-  .btn.secondary { background: var(--card); border: 1px solid var(--border); color: var(--text); }
-  .upload-status { font-size: .8rem; color: var(--accent3); }
+/* ── UPLOAD BAR ── */
+.upload-bar{
+  background:var(--card);border-bottom:1px solid var(--border);
+  padding:9px 32px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+}
+.upload-bar label{font-size:.78rem;color:var(--muted);}
+input[type=file]{display:none;}
+.btn{background:var(--accent);color:#fff;border:none;border-radius:8px;
+  padding:6px 16px;cursor:pointer;font-size:.8rem;font-weight:600;transition:opacity .2s;}
+.btn:hover{opacity:.82;}
+.btn.ghost{background:var(--card2);border:1px solid var(--border);color:var(--text);}
+.btn.danger{background:rgba(247,110,110,.15);border:1px solid var(--a4);color:var(--a4);}
+.upload-msg{font-size:.78rem;color:var(--a3);transition:opacity .4s;}
 
-  /* Tabs */
-  .tabs {
-    display: flex; gap: 4px; padding: 16px 32px 0;
-    border-bottom: 1px solid var(--border);
-    background: var(--bg);
-  }
-  .tab-btn {
-    background: var(--card); border: 1px solid var(--border); color: var(--muted);
-    border-radius: 10px 10px 0 0; padding: 10px 22px; cursor: pointer; font-size: .88rem;
-    font-weight: 600; transition: all .2s; border-bottom: none;
-  }
-  .tab-btn.active { background: var(--card2); color: var(--accent); border-color: var(--accent); }
-  .tab-btn:hover:not(.active) { color: var(--text); }
+/* ── TABS ── */
+.tab-nav{display:flex;gap:2px;padding:18px 32px 0;background:var(--bg);}
+.tab-btn{background:transparent;border:1px solid transparent;color:var(--muted);
+  border-radius:10px 10px 0 0;padding:10px 22px;cursor:pointer;font-size:.85rem;font-weight:600;
+  transition:all .2s;border-bottom:none;position:relative;}
+.tab-btn::after{content:'';position:absolute;bottom:0;left:0;right:0;height:2px;background:transparent;transition:background .2s;}
+.tab-btn.active{background:var(--card);border-color:var(--border);color:var(--accent);}
+.tab-btn.active::after{background:var(--accent);}
+.tab-btn:not(.active):hover{color:var(--text);}
+.tab-divider{border-bottom:1px solid var(--border);margin:0 32px;}
 
-  /* Tab content */
-  .tab-panel { display: none; padding: 24px 32px 40px; }
-  .tab-panel.active { display: block; }
+/* ── OVERVIEW TAB specific ── */
+#tab-overview .kpi-mega{
+  display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px;
+}
+.mega-card{
+  background:var(--card);border:1px solid var(--border);border-radius:var(--radius);
+  padding:22px 24px;position:relative;overflow:hidden;cursor:default;transition:transform .15s;
+}
+.mega-card:hover{transform:translateY(-2px);}
+.mega-card .bar{position:absolute;top:0;left:0;right:0;height:4px;border-radius:var(--radius) var(--radius) 0 0;}
+.mega-card .icon{font-size:1.6rem;margin-bottom:10px;}
+.mega-card .label{font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px;}
+.mega-card .val{font-size:2rem;font-weight:800;line-height:1;margin-bottom:4px;}
+.mega-card .sub{font-size:.75rem;color:var(--muted);}
+.mega-card .delta{font-size:.78rem;font-weight:700;margin-top:8px;}
+.delta-up{color:var(--a4);} .delta-down{color:var(--a3);} .delta-n{color:var(--muted);}
 
-  /* Controls strip */
-  .controls {
-    display: flex; align-items: center; gap: 18px; flex-wrap: wrap;
-    background: var(--card); border: 1px solid var(--border);
-    border-radius: var(--radius); padding: 14px 20px; margin-bottom: 22px;
-  }
-  .ctrl-group { display: flex; align-items: center; gap: 8px; }
-  .ctrl-group label { font-size: .8rem; color: var(--muted); white-space: nowrap; }
-  select, input[type=range] {
-    background: var(--card2); border: 1px solid var(--border); color: var(--text);
-    border-radius: 6px; padding: 5px 10px; font-size: .82rem; cursor: pointer;
-  }
-  input[type=range] { padding: 0; width: 120px; accent-color: var(--accent); }
-  .range-val { font-size: .82rem; color: var(--accent2); min-width: 28px; }
+/* ── PANELS ── */
+.tab-panel{display:none;padding:24px 32px 48px;}
+.tab-panel.active{display:block;}
 
-  /* KPI cards row */
-  .kpi-row { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 22px; }
-  .kpi-card {
-    background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
-    padding: 16px 20px; min-width: 160px; flex: 1;
-    position: relative; overflow: hidden;
-  }
-  .kpi-card::before {
-    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
-    border-radius: var(--radius) var(--radius) 0 0;
-  }
-  .kpi-card.blue::before { background: var(--accent); }
-  .kpi-card.yellow::before { background: var(--accent2); }
-  .kpi-card.green::before { background: var(--accent3); }
-  .kpi-card.red::before { background: var(--accent4); }
-  .kpi-label { font-size: .75rem; color: var(--muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: .5px; }
-  .kpi-value { font-size: 1.8rem; font-weight: 700; line-height: 1; }
-  .kpi-sub { font-size: .75rem; color: var(--muted); margin-top: 4px; }
-  .kpi-delta { font-size: .78rem; font-weight: 600; margin-top: 6px; }
-  .kpi-delta.up { color: var(--accent4); }
-  .kpi-delta.down { color: var(--accent3); }
-  .kpi-delta.neutral { color: var(--muted); }
+/* ── SECTION HEADER ── */
+.section-hd{display:flex;align-items:center;gap:10px;margin-bottom:6px;}
+.section-hd h2{font-size:1rem;font-weight:700;}
+.section-hd .pill{background:var(--card2);border:1px solid var(--border);
+  border-radius:20px;padding:2px 10px;font-size:.72rem;color:var(--muted);}
 
-  /* Chart grids */
-  .chart-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-bottom: 22px; }
-  .chart-grid.three { grid-template-columns: 1fr 1fr 1fr; }
-  .chart-grid.full { grid-template-columns: 1fr; }
-  .chart-card {
-    background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
-    padding: 18px 20px;
-  }
-  .chart-card h3 { font-size: .85rem; color: var(--muted); margin-bottom: 14px; text-transform: uppercase; letter-spacing: .5px; }
-  .chart-card canvas { max-height: 280px; }
+/* ── YTD NOTE ── */
+.ytd-note{
+  background:linear-gradient(90deg,rgba(79,142,247,.12),transparent);
+  border-left:3px solid var(--accent);border-radius:0 10px 10px 0;
+  padding:9px 16px;font-size:.82rem;color:var(--accent);margin-bottom:18px;
+}
 
-  /* Table */
-  .data-table-wrap { overflow-x: auto; }
-  table { width: 100%; border-collapse: collapse; font-size: .82rem; }
-  th { background: var(--card2); color: var(--muted); font-weight: 600; padding: 9px 12px; text-align: left; border-bottom: 1px solid var(--border); white-space: nowrap; }
-  td { padding: 8px 12px; border-bottom: 1px solid var(--border); color: var(--text); }
-  tr:hover td { background: var(--card2); }
-  td.good { color: var(--accent3); font-weight: 600; }
-  td.bad { color: var(--accent4); font-weight: 600; }
-  td.warn { color: var(--accent2); font-weight: 600; }
+/* ── CONTROLS ── */
+.controls{
+  display:flex;align-items:center;gap:16px;flex-wrap:wrap;
+  background:var(--card);border:1px solid var(--border);border-radius:var(--radius);
+  padding:12px 18px;margin-bottom:20px;
+}
+.ctrl{display:flex;align-items:center;gap:8px;}
+.ctrl label{font-size:.75rem;color:var(--muted);white-space:nowrap;}
+select{background:var(--card2);border:1px solid var(--border);color:var(--text);
+  border-radius:7px;padding:5px 9px;font-size:.79rem;cursor:pointer;}
+input[type=range]{accent-color:var(--accent);cursor:pointer;width:110px;}
+.rval{font-size:.8rem;color:var(--a2);min-width:30px;font-weight:600;}
+.sep{width:1px;height:22px;background:var(--border);flex-shrink:0;}
 
-  /* Toggle buttons */
-  .toggle-group { display: flex; gap: 4px; flex-wrap: wrap; }
-  .toggle-btn {
-    background: var(--card2); border: 1px solid var(--border); color: var(--muted);
-    border-radius: 6px; padding: 5px 12px; cursor: pointer; font-size: .78rem; font-weight: 600;
-    transition: all .2s;
-  }
-  .toggle-btn.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+/* ── TOGGLES ── */
+.tog-group{display:flex;gap:4px;flex-wrap:wrap;}
+.tog{background:var(--card2);border:1px solid var(--border);color:var(--muted);
+  border-radius:7px;padding:5px 13px;cursor:pointer;font-size:.76rem;font-weight:700;
+  transition:all .18s;}
+.tog.on{color:#fff;border-color:transparent;}
+.tog[data-year="2023"].on{background:#4f8ef7;}
+.tog[data-year="2024"].on{background:#f7c948;color:#111;}
+.tog[data-year="2025"].on{background:#4fc97e;color:#111;}
+.tog[data-year="2026"].on{background:#f76e6e;}
 
-  /* YTD highlight band */
-  .ytd-note {
-    background: linear-gradient(90deg, rgba(79,142,247,.15), transparent);
-    border-left: 3px solid var(--accent); border-radius: 0 8px 8px 0;
-    padding: 8px 14px; font-size: .82rem; color: var(--accent); margin-bottom: 16px;
-  }
+/* ── KPI CARDS ── */
+.kpi-row{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px;}
+.kpi{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);
+  padding:14px 18px;flex:1;min-width:150px;position:relative;overflow:hidden;}
+.kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;border-radius:var(--radius) var(--radius) 0 0;}
+.kpi.bl::before{background:var(--accent);}.kpi.yw::before{background:var(--a2);}
+.kpi.gn::before{background:var(--a3);}.kpi.rd::before{background:var(--a4);}
+.kpi.pu::before{background:var(--a5);}
+.kpi-lbl{font-size:.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px;}
+.kpi-val{font-size:1.75rem;font-weight:800;line-height:1;}
+.kpi-sub{font-size:.72rem;color:var(--muted);margin-top:3px;}
+.kpi-delta{font-size:.74rem;font-weight:700;margin-top:6px;}
 
-  @media (max-width: 768px) {
-    .chart-grid, .chart-grid.three { grid-template-columns: 1fr; }
-    .tabs { padding: 12px 12px 0; }
-    .tab-panel { padding: 16px 12px; }
-    header { padding: 14px 16px; }
-  }
+/* ── CHARTS ── */
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:16px;}
+.grid1{display:grid;grid-template-columns:1fr;gap:16px;margin-bottom:16px;}
+.ccard{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:18px 20px;}
+.ccard h3{font-size:.74rem;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:14px;}
+.ccard canvas{max-height:260px;}
+.ccard.tall canvas{max-height:340px;}
+
+/* ── TABLE ── */
+.tbl-wrap{overflow-x:auto;}
+table{width:100%;border-collapse:collapse;font-size:.79rem;}
+th{background:var(--card2);color:var(--muted);font-weight:700;padding:9px 11px;
+  text-align:left;border-bottom:1px solid var(--border);white-space:nowrap;position:sticky;top:0;}
+td{padding:7px 11px;border-bottom:1px solid rgba(255,255,255,.04);color:var(--text);}
+tr:hover td{background:rgba(255,255,255,.02);}
+.good{color:var(--a3);font-weight:700;} .warn{color:var(--a2);font-weight:700;} .bad{color:var(--a4);font-weight:700;}
+
+/* ── GAUGE ── */
+.gauge-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:20px;}
+.gauge-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px;text-align:center;}
+.gauge-card h4{font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;}
+.gauge-card canvas{max-height:130px;}
+.gauge-card .g-val{font-size:1.1rem;font-weight:800;margin-top:4px;}
+
+/* ── SPARKLINE ── */
+.spark-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px;}
+.spark{background:var(--card);border:1px solid var(--border);border-radius:10px;
+  padding:12px 16px;flex:1;min-width:140px;display:flex;flex-direction:column;gap:6px;}
+.spark .s-label{font-size:.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;}
+.spark .s-val{font-size:1.2rem;font-weight:800;}
+.spark canvas{height:40px!important;max-height:40px;}
+
+/* ── MONTH FILTER ── */
+.mfilter{display:flex;align-items:center;gap:10px;margin-bottom:20px;flex-wrap:wrap;}
+.mfilter label{font-size:.78rem;color:var(--muted);}
+.month-pills{display:flex;gap:4px;flex-wrap:wrap;}
+.mpill{background:var(--card2);border:1px solid var(--border);color:var(--muted);
+  border-radius:6px;padding:3px 9px;cursor:pointer;font-size:.72rem;font-weight:600;transition:all .15s;}
+.mpill.on{background:var(--accent);border-color:var(--accent);color:#fff;}
+
+/* ── PROGRESS BARS ── */
+.prog-row{display:flex;flex-direction:column;gap:8px;}
+.prog-item{display:flex;align-items:center;gap:10px;}
+.prog-item .p-label{font-size:.78rem;color:var(--muted);min-width:60px;}
+.prog-item .p-bar-wrap{flex:1;background:var(--card2);border-radius:20px;height:8px;overflow:hidden;}
+.prog-item .p-bar{height:100%;border-radius:20px;transition:width .8s cubic-bezier(.4,0,.2,1);}
+.prog-item .p-val{font-size:.76rem;font-weight:700;min-width:50px;text-align:right;}
+
+/* ── RESPONSIVE ── */
+@media(max-width:900px){
+  .grid2,.grid3,.gauge-grid,.kpi-mega{grid-template-columns:1fr 1fr;}
+}
+@media(max-width:600px){
+  .grid2,.grid3,.gauge-grid,.kpi-mega{grid-template-columns:1fr;}
+  .tab-panel,.upload-bar,header{padding-left:14px;padding-right:14px;}
+  .tab-nav{padding:14px 14px 0;}
+}
+
+/* ── TOOLTIP OVERRIDE ── */
+.custom-tooltip{
+  background:rgba(14,16,24,.97)!important;border:1px solid var(--border)!important;
+  border-radius:10px!important;padding:10px 14px!important;
+}
+
+/* ── PRINT ── */
+@media print{
+  header,. upload-bar,.tab-nav,.controls,.mfilter{display:none!important;}
+  .tab-panel{display:block!important;break-before:page;}
+}
 </style>
 </head>
 <body>
 
+<!-- ─── HEADER ─── -->
 <header>
+  <div class="logo">🏭</div>
   <div>
     <h1>Alfa Pastry — KPI Scorecard</h1>
-    <span>Operations Performance Dashboard</span>
+    <p>Operations Performance Dashboard · 2023–2026</p>
   </div>
-  <div class="header-badge" id="lastUpdated">Last updated: Jun 2026</div>
+  <div class="header-right">
+    <span class="badge" id="hBadgeDate">Jun 2026</span>
+    <span class="badge green" id="hBadgeSafety">Safety ✓</span>
+    <span class="badge red" id="hBadgeQuality">Quality ↑</span>
+  </div>
 </header>
 
+<!-- ─── UPLOAD BAR ─── -->
 <div class="upload-bar">
-  <label>Update data:</label>
-  <label class="btn secondary" for="fileUpload">📂 Upload Excel / CSV</label>
-  <input type="file" id="fileUpload" accept=".xlsx,.xls,.csv">
-  <button class="btn" onclick="exportCSV()">⬇ Export CSV</button>
-  <span class="upload-status" id="uploadStatus"></span>
+  <label>Monthly update:</label>
+  <label class="btn ghost" for="fileUpload">📂 Upload CSV</label>
+  <input type="file" id="fileUpload" accept=".csv">
+  <button class="btn ghost" onclick="showCsvGuide()">? CSV Format</button>
+  <div class="sep"></div>
+  <button class="btn ghost" onclick="exportCSV()">⬇ Export CSV</button>
+  <button class="btn ghost" onclick="window.print()">🖨 Print</button>
+  <span class="upload-msg" id="uploadMsg"></span>
 </div>
 
-<div class="tabs">
-  <button class="tab-btn active" onclick="switchTab('safety', this)">🦺 Employee Safety</button>
-  <button class="tab-btn" onclick="switchTab('quality', this)">🏷 Product Quality</button>
-  <button class="tab-btn" onclick="switchTab('productivity', this)">⚙ Productivity</button>
+<!-- CSV GUIDE MODAL -->
+<div id="csvModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:999;align-items:center;justify-content:center;">
+  <div style="background:var(--card2);border:1px solid var(--border);border-radius:16px;padding:28px;max-width:560px;width:90%;">
+    <h3 style="margin-bottom:12px;color:var(--accent);">CSV Upload Format</h3>
+    <p style="font-size:.82rem;color:var(--muted);margin-bottom:10px;">Upload a CSV with this header row to update the dashboard data:</p>
+    <pre style="background:var(--bg);padding:12px;border-radius:8px;font-size:.76rem;color:var(--text);overflow-x:auto;">section,year,month_index,val1,val2,val3
+
+section  = safety | quality | productivity
+year     = 2023..2026
+month_index = 0 (Jan) .. 11 (Dec)
+
+safety:       val1=accidents, val2=man_hours, val3=rate_per_1M_hrs
+quality:      val1=incidents, val2=selling_kg, val3=rate_per_1M_kg
+productivity: val1=prod_kg,   val2=waste_pct,  val3=total_hours</pre>
+    <button class="btn" style="margin-top:14px;" onclick="document.getElementById('csvModal').style.display='none'">Close</button>
+  </div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════ TAB 1: SAFETY -->
-<div class="tab-panel active" id="tab-safety">
-  <div class="ytd-note" id="safetyYtdNote">YTD 2026 (Jan–May): 12 accidents · 278,460 man-hours · Rate: 43.09 per 1M hrs</div>
+<!-- ─── TABS ─── -->
+<div class="tab-nav">
+  <button class="tab-btn active" onclick="switchTab('overview',this)">📊 Overview</button>
+  <button class="tab-btn" onclick="switchTab('safety',this)">🦺 Safety</button>
+  <button class="tab-btn" onclick="switchTab('quality',this)">🏷 Quality</button>
+  <button class="tab-btn" onclick="switchTab('productivity',this)">⚙ Productivity</button>
+</div>
+<div class="tab-divider"></div>
+
+<!-- ══════════════════════════════════════════ OVERVIEW ══ -->
+<div class="tab-panel active" id="tab-overview">
+
+  <div class="section-hd" style="margin-bottom:18px;">
+    <h2>Executive Summary</h2>
+    <span class="pill">YTD 2026</span>
+    <span class="pill">As of May 2026</span>
+  </div>
+
+  <!-- Mega KPI cards -->
+  <div id="overview-mega" class="kpi-mega">
+    <div class="mega-card">
+      <div class="bar" style="background:var(--a4);"></div>
+      <div class="icon">🦺</div>
+      <div class="label">Safety Rate YTD 2026</div>
+      <div class="val" style="color:var(--a4);" id="ov-safety-rate">43.09</div>
+      <div class="sub">accidents / 1M man-hours</div>
+      <div class="delta delta-up" id="ov-safety-delta">▲ +130.6% vs 2025 YTD</div>
+    </div>
+    <div class="mega-card">
+      <div class="bar" style="background:var(--a4);"></div>
+      <div class="icon">🏷</div>
+      <div class="label">Quality Rate YTD 2026</div>
+      <div class="val" style="color:var(--a4);" id="ov-quality-rate">25.89</div>
+      <div class="sub">incidents / 1M kg sold</div>
+      <div class="delta delta-up" id="ov-quality-delta">▲ +3.0% vs 2025 YTD</div>
+    </div>
+    <div class="mega-card">
+      <div class="bar" style="background:var(--a3);"></div>
+      <div class="icon">⚙</div>
+      <div class="label">Production YTD 2026</div>
+      <div class="val" style="color:var(--a3);" id="ov-prod-val">6.58M</div>
+      <div class="sub">kg produced (Jan–Mar)</div>
+      <div class="delta delta-n" id="ov-prod-delta">— 3 months complete</div>
+    </div>
+    <div class="mega-card">
+      <div class="bar" style="background:var(--a2);"></div>
+      <div class="icon">♻</div>
+      <div class="label">Waste % YTD 2026</div>
+      <div class="val" style="color:var(--a2);" id="ov-waste-val">2.90%</div>
+      <div class="sub">vs 3.52% full year 2025</div>
+      <div class="delta delta-down" id="ov-waste-delta">▼ Improving</div>
+    </div>
+  </div>
+
+  <!-- Year-over-year progress bars -->
+  <div class="grid2">
+    <div class="ccard">
+      <h3>Safety Rate — Year over Year</h3>
+      <div class="prog-row" id="ov-safety-prog" style="margin-top:8px;"></div>
+      <canvas id="ov-safety-chart" style="margin-top:18px;max-height:180px;"></canvas>
+    </div>
+    <div class="ccard">
+      <h3>Quality Rate — Year over Year</h3>
+      <div class="prog-row" id="ov-quality-prog" style="margin-top:8px;"></div>
+      <canvas id="ov-quality-chart" style="margin-top:18px;max-height:180px;"></canvas>
+    </div>
+  </div>
+
+  <div class="grid2">
+    <div class="ccard">
+      <h3>Production Volume — Annual Trend</h3>
+      <canvas id="ov-prod-chart" style="max-height:200px;"></canvas>
+    </div>
+    <div class="ccard">
+      <h3>Waste % — Annual Trend</h3>
+      <canvas id="ov-waste-chart" style="max-height:200px;"></canvas>
+    </div>
+  </div>
+
+  <!-- Gauge / donut summary row -->
+  <div class="gauge-grid">
+    <div class="gauge-card">
+      <h4>Safety vs Target</h4>
+      <canvas id="g-safety"></canvas>
+      <div class="g-val" style="color:var(--a4);">43.1 / 40</div>
+    </div>
+    <div class="gauge-card">
+      <h4>Quality Trend</h4>
+      <canvas id="g-quality"></canvas>
+      <div class="g-val" style="color:var(--a4);">25.9 / 1M kg</div>
+    </div>
+    <div class="gauge-card">
+      <h4>2025 Production Mix</h4>
+      <canvas id="g-prod"></canvas>
+      <div class="g-val" style="color:var(--a3);">28.18M kg</div>
+    </div>
+    <div class="gauge-card">
+      <h4>2026 YTD Waste Split</h4>
+      <canvas id="g-waste"></canvas>
+      <div class="g-val" style="color:var(--a2);">2.90%</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════ SAFETY ══ -->
+<div class="tab-panel" id="tab-safety">
+  <div class="ytd-note" id="safety-ytd-note">
+    YTD 2026 (Jan–May): <strong>12 accidents</strong> · 278,460 man-hours · Rate: <strong>43.09</strong> per 1M hrs · ▲ +130.6% vs same period 2025
+  </div>
 
   <div class="controls">
-    <div class="ctrl-group">
-      <label>View:</label>
-      <div class="toggle-group" id="safetyYearToggles">
-        <button class="toggle-btn on" data-year="2023" onclick="toggleSafetyYear(this)">2023</button>
-        <button class="toggle-btn on" data-year="2024" onclick="toggleSafetyYear(this)">2024</button>
-        <button class="toggle-btn on" data-year="2025" onclick="toggleSafetyYear(this)">2025</button>
-        <button class="toggle-btn on" data-year="2026" onclick="toggleSafetyYear(this)">2026 YTD</button>
+    <div class="ctrl"><label>Years:</label>
+      <div class="tog-group" id="safYrTogs">
+        <button class="tog on" data-year="2023" onclick="togYear('saf',this)">2023</button>
+        <button class="tog on" data-year="2024" onclick="togYear('saf',this)">2024</button>
+        <button class="tog on" data-year="2025" onclick="togYear('saf',this)">2025</button>
+        <button class="tog on" data-year="2026" onclick="togYear('saf',this)">2026 YTD</button>
       </div>
     </div>
-    <div class="ctrl-group">
-      <label>Chart type:</label>
-      <select onchange="changeSafetyChartType(this.value)">
-        <option value="bar">Bar</option>
-        <option value="line">Line</option>
+    <div class="sep"></div>
+    <div class="ctrl"><label>Chart:</label>
+      <select onchange="safChartType=this.value;buildSafety()">
+        <option value="bar">Bar</option><option value="line">Line</option>
       </select>
     </div>
-    <div class="ctrl-group">
-      <label>Target line:</label>
-      <input type="range" id="targetSlider" min="0" max="100" value="40" oninput="updateTarget(this.value)">
-      <span class="range-val" id="targetVal">40</span>
+    <div class="sep"></div>
+    <div class="ctrl"><label>Target line:</label>
+      <input type="range" id="safTarget" min="0" max="100" value="40" oninput="safTargetVal=+this.value;document.getElementById('safTgtLbl').textContent=this.value;buildSafety()">
+      <span class="rval" id="safTgtLbl">40</span>
+    </div>
+    <div class="sep"></div>
+    <div class="ctrl"><label>Month filter:</label>
+      <select id="safMonthTo" onchange="buildSafety()">
+        <option value="12">Full year</option>
+        <option value="1">Jan</option><option value="2">Feb</option><option value="3">Mar</option>
+        <option value="4">Apr</option><option value="5">May</option><option value="6">Jun</option>
+        <option value="7">Jul</option><option value="8">Aug</option><option value="9">Sep</option>
+        <option value="10">Oct</option><option value="11">Nov</option><option value="12">Dec</option>
+      </select>
     </div>
   </div>
 
-  <div class="kpi-row" id="safetyKpiRow">
-    <div class="kpi-card blue">
-      <div class="kpi-label">2023 Annual Rate</div>
-      <div class="kpi-value" style="color:var(--accent4)">53.22</div>
-      <div class="kpi-sub">per 1M man-hours</div>
-      <div class="kpi-delta neutral">6 accidents · 464,831 hrs</div>
-    </div>
-    <div class="kpi-card blue">
-      <div class="kpi-label">2024 Annual Rate</div>
-      <div class="kpi-value" style="color:var(--accent3)">18.22</div>
-      <div class="kpi-sub">per 1M man-hours</div>
-      <div class="kpi-delta down">▼ 65.8% vs 2023 · 9 acc · 493K hrs</div>
-    </div>
-    <div class="kpi-card blue">
-      <div class="kpi-label">2025 Annual Rate</div>
-      <div class="kpi-value" style="color:var(--accent3)">18.69</div>
-      <div class="kpi-sub">per 1M man-hours</div>
-      <div class="kpi-delta neutral">▲ 2.6% vs 2024 · 12 acc · 642K hrs</div>
-    </div>
-    <div class="kpi-card red">
-      <div class="kpi-label">2026 YTD Rate</div>
-      <div class="kpi-value" style="color:var(--accent4)">43.09</div>
-      <div class="kpi-sub">per 1M man-hours (Jan–May)</div>
-      <div class="kpi-delta up">▲ +130.6% vs 2025 YTD · 12 acc</div>
-    </div>
-    <div class="kpi-card yellow">
-      <div class="kpi-label">2024 Target</div>
-      <div class="kpi-value" style="color:var(--accent2)">40</div>
-      <div class="kpi-sub">per 1M man-hours</div>
-      <div class="kpi-delta down">✓ Met in 2024 & 2025</div>
-    </div>
+  <div class="kpi-row">
+    <div class="kpi bl"><div class="kpi-lbl">2023 Annual Rate</div><div class="kpi-val" style="color:var(--a4)">53.22</div><div class="kpi-sub">per 1M man-hours</div><div class="kpi-delta delta-n">6 accidents · 464,831 hrs</div></div>
+    <div class="kpi bl"><div class="kpi-lbl">2024 Annual Rate</div><div class="kpi-val" style="color:var(--a3)">18.22</div><div class="kpi-sub">per 1M man-hours</div><div class="kpi-delta delta-down">▼ −65.8% vs 2023 · 9 acc</div></div>
+    <div class="kpi bl"><div class="kpi-lbl">2025 Annual Rate</div><div class="kpi-val" style="color:var(--a3)">18.69</div><div class="kpi-sub">per 1M man-hours</div><div class="kpi-delta delta-n">▲ +2.6% vs 2024 · 12 acc</div></div>
+    <div class="kpi rd"><div class="kpi-lbl">2026 YTD Rate</div><div class="kpi-val" style="color:var(--a4)" id="saf-ytd-val">43.09</div><div class="kpi-sub">per 1M man-hours (Jan–May)</div><div class="kpi-delta delta-up" id="saf-ytd-delta">▲ +130.6% vs 2025 YTD</div></div>
+    <div class="kpi yw"><div class="kpi-lbl">Target</div><div class="kpi-val" style="color:var(--a2)" id="saf-target-disp">40</div><div class="kpi-sub">per 1M man-hours</div><div class="kpi-delta delta-down">✓ Met 2024 & 2025</div></div>
   </div>
 
-  <div class="chart-grid">
-    <div class="chart-card">
-      <h3>Monthly Accident Rate — All Years</h3>
-      <canvas id="safetyRateChart"></canvas>
-    </div>
-    <div class="chart-card">
-      <h3>Annual Accidents Count</h3>
-      <canvas id="safetyCountChart"></canvas>
-    </div>
+  <div class="grid2">
+    <div class="ccard"><h3>Monthly Accident Rate — All Years</h3><canvas id="safRateChart"></canvas></div>
+    <div class="ccard"><h3>YTD Cumulative Rate Comparison</h3><canvas id="safYtdChart"></canvas></div>
+  </div>
+  <div class="grid2">
+    <div class="ccard"><h3>Annual Accidents vs Rate</h3><canvas id="safAnnualChart"></canvas></div>
+    <div class="ccard"><h3>Man-hours Worked per Month (k)</h3><canvas id="safHoursChart"></canvas></div>
   </div>
 
-  <div class="chart-grid">
-    <div class="chart-card">
-      <h3>Man-hours Worked per Month</h3>
-      <canvas id="safetyHoursChart"></canvas>
-    </div>
-    <div class="chart-card">
-      <h3>YTD Cumulative Rate Comparison</h3>
-      <canvas id="safetyYtdChart"></canvas>
-    </div>
-  </div>
-
-  <div class="chart-card" style="margin-bottom:22px">
+  <div class="ccard" style="margin-bottom:20px;">
     <h3>Monthly Detail Table</h3>
-    <div class="data-table-wrap">
-      <table id="safetyTable">
-        <thead>
-          <tr><th>Month</th><th>Acc 2023</th><th>Rate 2023</th><th>Acc 2024</th><th>Rate 2024</th><th>Acc 2025</th><th>Rate 2025</th><th>Acc 2026</th><th>Rate 2026</th></tr>
-        </thead>
-        <tbody id="safetyTbody"></tbody>
-      </table>
-    </div>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>Month</th><th>Acc 2023</th><th>Rate 2023</th><th>Acc 2024</th><th>Rate 2024</th><th>Acc 2025</th><th>Rate 2025</th><th>Acc 2026</th><th>Rate 2026</th></tr></thead>
+      <tbody id="safTbody"></tbody>
+    </table></div>
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════ TAB 2: QUALITY -->
+<!-- ══════════════════════════════════════════ QUALITY ══ -->
 <div class="tab-panel" id="tab-quality">
-  <div class="ytd-note">YTD 2026 (Jan–Apr): 199 incidents · 7,686,251 kg sold · Rate: 25.89 per 1M kg</div>
+  <div class="ytd-note">
+    YTD 2026 (Jan–Apr): <strong>199 incidents</strong> · 7,686,251 kg sold · Rate: <strong>25.89</strong> per 1M kg · ▲ +3.0% vs same period 2025
+  </div>
 
   <div class="controls">
-    <div class="ctrl-group">
-      <label>Years:</label>
-      <div class="toggle-group" id="qualityYearToggles">
-        <button class="toggle-btn on" data-year="2023" onclick="toggleQualityYear(this)">2023</button>
-        <button class="toggle-btn on" data-year="2024" onclick="toggleQualityYear(this)">2024</button>
-        <button class="toggle-btn on" data-year="2025" onclick="toggleQualityYear(this)">2025</button>
-        <button class="toggle-btn on" data-year="2026" onclick="toggleQualityYear(this)">2026 YTD</button>
+    <div class="ctrl"><label>Years:</label>
+      <div class="tog-group" id="qualYrTogs">
+        <button class="tog on" data-year="2023" onclick="togYear('qual',this)">2023</button>
+        <button class="tog on" data-year="2024" onclick="togYear('qual',this)">2024</button>
+        <button class="tog on" data-year="2025" onclick="togYear('qual',this)">2025</button>
+        <button class="tog on" data-year="2026" onclick="togYear('qual',this)">2026 YTD</button>
       </div>
     </div>
-    <div class="ctrl-group">
-      <label>Metric:</label>
-      <select id="qualityMetricSel" onchange="updateQualityCharts()">
+    <div class="sep"></div>
+    <div class="ctrl"><label>Metric:</label>
+      <select id="qualMetric" onchange="buildQuality()">
         <option value="rate">Rate / 1M kg</option>
-        <option value="incidents">Incident Count</option>
-        <option value="kg">Selling kgs</option>
+        <option value="inc">Incident Count</option>
+        <option value="kg">Selling kg</option>
       </select>
     </div>
-    <div class="ctrl-group">
-      <label>Chart:</label>
-      <select onchange="changeQualityChartType(this.value)">
-        <option value="bar">Bar</option>
-        <option value="line">Line</option>
+    <div class="sep"></div>
+    <div class="ctrl"><label>Chart:</label>
+      <select onchange="qualChartType=this.value;buildQuality()">
+        <option value="bar">Bar</option><option value="line">Line</option><option value="radar">Radar</option>
+      </select>
+    </div>
+    <div class="sep"></div>
+    <div class="ctrl"><label>Month to:</label>
+      <select id="qualMonthTo" onchange="buildQuality()">
+        <option value="12">Full year</option>
+        <option value="1">Jan</option><option value="2">Feb</option><option value="3">Mar</option>
+        <option value="4">Apr</option><option value="5">May</option><option value="6">Jun</option>
+        <option value="7">Jul</option><option value="8">Aug</option><option value="9">Sep</option>
+        <option value="10">Oct</option><option value="11">Nov</option><option value="12">Dec</option>
       </select>
     </div>
   </div>
 
   <div class="kpi-row">
-    <div class="kpi-card green">
-      <div class="kpi-label">2023 Annual Rate</div>
-      <div class="kpi-value" style="color:var(--accent3)">20.83</div>
-      <div class="kpi-sub">per 1M kg sold · 487 incidents</div>
-      <div class="kpi-delta neutral">23.38M kg sold</div>
-    </div>
-    <div class="kpi-card yellow">
-      <div class="kpi-label">2024 Annual Rate</div>
-      <div class="kpi-value" style="color:var(--accent2)">22.34</div>
-      <div class="kpi-sub">per 1M kg sold · 512 incidents</div>
-      <div class="kpi-delta up">▲ +7.3% vs 2023</div>
-    </div>
-    <div class="kpi-card red">
-      <div class="kpi-label">2025 Annual Rate</div>
-      <div class="kpi-value" style="color:var(--accent4)">25.19</div>
-      <div class="kpi-sub">per 1M kg sold · 635 incidents</div>
-      <div class="kpi-delta up">▲ +12.8% vs 2024</div>
-    </div>
-    <div class="kpi-card red">
-      <div class="kpi-label">2026 YTD Rate</div>
-      <div class="kpi-value" style="color:var(--accent4)">25.89</div>
-      <div class="kpi-sub">per 1M kg (Jan–Apr) · 199 inc</div>
-      <div class="kpi-delta up">▲ +3.0% vs 2025 YTD</div>
-    </div>
-    <div class="kpi-card blue">
-      <div class="kpi-label">Trend (3yr)</div>
-      <div class="kpi-value" style="color:var(--accent4)">↑ +20.9%</div>
-      <div class="kpi-sub">2023 → 2025</div>
-      <div class="kpi-delta up">Deteriorating trend</div>
-    </div>
+    <div class="kpi gn"><div class="kpi-lbl">2023 Annual Rate</div><div class="kpi-val" style="color:var(--a3)">20.83</div><div class="kpi-sub">per 1M kg · 487 incidents</div><div class="kpi-delta delta-n">23.38M kg sold</div></div>
+    <div class="kpi yw"><div class="kpi-lbl">2024 Annual Rate</div><div class="kpi-val" style="color:var(--a2)">22.34</div><div class="kpi-sub">per 1M kg · 512 incidents</div><div class="kpi-delta delta-up">▲ +7.3% vs 2023</div></div>
+    <div class="kpi rd"><div class="kpi-lbl">2025 Annual Rate</div><div class="kpi-val" style="color:var(--a4)">25.19</div><div class="kpi-sub">per 1M kg · 635 incidents</div><div class="kpi-delta delta-up">▲ +12.8% vs 2024</div></div>
+    <div class="kpi rd"><div class="kpi-lbl">2026 YTD Rate</div><div class="kpi-val" style="color:var(--a4)">25.89</div><div class="kpi-sub">per 1M kg (Jan–Apr) · 199 inc</div><div class="kpi-delta delta-up">▲ +3.0% vs 2025 YTD</div></div>
+    <div class="kpi bl"><div class="kpi-lbl">3-Year Trend</div><div class="kpi-val" style="color:var(--a4)">+20.9%</div><div class="kpi-sub">2023→2025 rate increase</div><div class="kpi-delta delta-up">Deteriorating</div></div>
   </div>
 
-  <div class="chart-grid">
-    <div class="chart-card">
-      <h3>Monthly Rate per 1M kg — All Years</h3>
-      <canvas id="qualityRateChart"></canvas>
-    </div>
-    <div class="chart-card">
-      <h3>Annual Totals — Incidents & Rate</h3>
-      <canvas id="qualityAnnualChart"></canvas>
-    </div>
+  <div class="grid2">
+    <div class="ccard tall"><h3>Monthly Rate per 1M kg</h3><canvas id="qualRateChart"></canvas></div>
+    <div class="ccard tall"><h3>Monthly Incident Count</h3><canvas id="qualCountChart"></canvas></div>
+  </div>
+  <div class="grid2">
+    <div class="ccard"><h3>Annual Totals</h3><canvas id="qualAnnualChart"></canvas></div>
+    <div class="ccard"><h3>YTD Cumulative Incidents</h3><canvas id="qualYtdChart"></canvas></div>
   </div>
 
-  <div class="chart-grid">
-    <div class="chart-card">
-      <h3>Monthly Incidents Count</h3>
-      <canvas id="qualityCountChart"></canvas>
-    </div>
-    <div class="chart-card">
-      <h3>YTD Cumulative Incidents</h3>
-      <canvas id="qualityYtdChart"></canvas>
-    </div>
-  </div>
-
-  <div class="chart-card" style="margin-bottom:22px">
+  <div class="ccard" style="margin-bottom:20px;">
     <h3>Monthly Detail Table</h3>
-    <div class="data-table-wrap">
-      <table>
-        <thead>
-          <tr><th>Month</th><th>Inc 2023</th><th>Rate 2023</th><th>Inc 2024</th><th>Rate 2024</th><th>Inc 2025</th><th>Rate 2025</th><th>Inc 2026</th><th>Rate 2026</th></tr>
-        </thead>
-        <tbody id="qualityTbody"></tbody>
-      </table>
-    </div>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>Month</th><th>Inc 2023</th><th>Rate 2023</th><th>Inc 2024</th><th>Rate 2024</th><th>YoY%</th><th>Inc 2025</th><th>Rate 2025</th><th>YoY%</th><th>Inc 2026</th><th>Rate 2026</th></tr></thead>
+      <tbody id="qualTbody"></tbody>
+    </table></div>
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════ TAB 3: PRODUCTIVITY -->
+<!-- ══════════════════════════════════════════ PRODUCTIVITY ══ -->
 <div class="tab-panel" id="tab-productivity">
-  <div class="ytd-note">YTD 2026 (Jan–Mar): 6,576,403 kg produced · 190,491 kg waste (2.90%) · 140,712 total hrs</div>
+  <div class="ytd-note">
+    YTD 2026 (Jan–Mar): <strong>6,576,403 kg</strong> produced · <strong>190,491 kg</strong> waste (2.90%) · 140,712 total hrs · <strong>65.7 kg/direct hr</strong>
+  </div>
 
   <div class="controls">
-    <div class="ctrl-group">
-      <label>Years:</label>
-      <div class="toggle-group" id="prodYearToggles">
-        <button class="toggle-btn on" data-year="2023" onclick="toggleProdYear(this)">2023</button>
-        <button class="toggle-btn on" data-year="2024" onclick="toggleProdYear(this)">2024</button>
-        <button class="toggle-btn on" data-year="2025" onclick="toggleProdYear(this)">2025</button>
-        <button class="toggle-btn on" data-year="2026" onclick="toggleProdYear(this)">2026 YTD</button>
+    <div class="ctrl"><label>Years:</label>
+      <div class="tog-group" id="prodYrTogs">
+        <button class="tog on" data-year="2023" onclick="togYear('prod',this)">2023</button>
+        <button class="tog on" data-year="2024" onclick="togYear('prod',this)">2024</button>
+        <button class="tog on" data-year="2025" onclick="togYear('prod',this)">2025</button>
+        <button class="tog on" data-year="2026" onclick="togYear('prod',this)">2026 YTD</button>
       </div>
     </div>
-    <div class="ctrl-group">
-      <label>Efficiency threshold:</label>
-      <input type="range" id="effSlider" min="40" max="100" value="70" oninput="updateEffThreshold(this.value)">
-      <span class="range-val" id="effVal">70</span> <span style="font-size:.75rem;color:var(--muted)">kg/hr</span>
+    <div class="sep"></div>
+    <div class="ctrl"><label>Eff. threshold:</label>
+      <input type="range" id="effSlider" min="40" max="100" value="70" oninput="effThr=+this.value;document.getElementById('effLbl').textContent=this.value;buildProd()">
+      <span class="rval" id="effLbl">70</span>
+      <span style="font-size:.72rem;color:var(--muted);">kg/hr</span>
+    </div>
+    <div class="sep"></div>
+    <div class="ctrl"><label>Waste alert %:</label>
+      <input type="range" id="wasteSlider" min="1" max="6" step="0.1" value="3.5" oninput="wasteThr=+this.value;document.getElementById('wasteLbl').textContent=this.value;buildProd()">
+      <span class="rval" id="wasteLbl">3.5</span>%
+    </div>
+    <div class="sep"></div>
+    <div class="ctrl"><label>Month to:</label>
+      <select id="prodMonthTo" onchange="buildProd()">
+        <option value="12">Full year</option>
+        <option value="1">Jan</option><option value="2">Feb</option><option value="3">Mar</option>
+        <option value="4">Apr</option><option value="5">May</option><option value="6">Jun</option>
+        <option value="7">Jul</option><option value="8">Aug</option><option value="9">Sep</option>
+        <option value="10">Oct</option><option value="11">Nov</option><option value="12">Dec</option>
+      </select>
     </div>
   </div>
 
   <div class="kpi-row">
-    <div class="kpi-card blue">
-      <div class="kpi-label">2023 Production</div>
-      <div class="kpi-value">24.12M</div>
-      <div class="kpi-sub">kg produced</div>
-      <div class="kpi-delta neutral">79.37 kg/direct hr</div>
-    </div>
-    <div class="kpi-card yellow">
-      <div class="kpi-label">2024 Production</div>
-      <div class="kpi-value">23.28M</div>
-      <div class="kpi-sub">kg produced</div>
-      <div class="kpi-delta up">▼ -3.5% · 77.26 kg/direct hr</div>
-    </div>
-    <div class="kpi-card green">
-      <div class="kpi-label">2025 Production</div>
-      <div class="kpi-value">28.18M</div>
-      <div class="kpi-sub">kg produced</div>
-      <div class="kpi-delta up">▲ +21.1% · 64.24 kg/direct hr</div>
-    </div>
-    <div class="kpi-card blue">
-      <div class="kpi-label">2026 YTD</div>
-      <div class="kpi-value">6.58M</div>
-      <div class="kpi-sub">kg (Jan–Mar)</div>
-      <div class="kpi-delta neutral">100,117 direct hrs</div>
-    </div>
-    <div class="kpi-card red">
-      <div class="kpi-label">2025 Waste %</div>
-      <div class="kpi-value" style="color:var(--accent4)">3.52%</div>
-      <div class="kpi-sub">992,618 kg waste</div>
-      <div class="kpi-delta up">▲ vs 3.62% (2024)</div>
-    </div>
-    <div class="kpi-card yellow">
-      <div class="kpi-label">2026 YTD Waste %</div>
-      <div class="kpi-value" style="color:var(--accent2)">2.90%</div>
-      <div class="kpi-sub">190,491 kg waste</div>
-      <div class="kpi-delta down">▼ Improving</div>
-    </div>
+    <div class="kpi bl"><div class="kpi-lbl">2023 Production</div><div class="kpi-val">24.12M</div><div class="kpi-sub">kg produced</div><div class="kpi-delta delta-n">79.37 kg/direct hr</div></div>
+    <div class="kpi yw"><div class="kpi-lbl">2024 Production</div><div class="kpi-val">23.28M</div><div class="kpi-sub">kg produced</div><div class="kpi-delta delta-up">▼ −3.5% · 77.26 kg/hr</div></div>
+    <div class="kpi gn"><div class="kpi-lbl">2025 Production</div><div class="kpi-val">28.18M</div><div class="kpi-sub">kg produced</div><div class="kpi-delta delta-down">▲ +21.1% · 64.24 kg/hr</div></div>
+    <div class="kpi bl"><div class="kpi-lbl">2026 YTD</div><div class="kpi-val">6.58M</div><div class="kpi-sub">kg (Jan–Mar)</div><div class="kpi-delta delta-n">100,117 direct hrs</div></div>
+    <div class="kpi yw"><div class="kpi-lbl">2025 Waste kg</div><div class="kpi-val" style="color:var(--a2)">992K</div><div class="kpi-sub">3.52% of production</div><div class="kpi-delta delta-n">Stable vs 3.62% (2024)</div></div>
+    <div class="kpi gn"><div class="kpi-lbl">2026 YTD Waste %</div><div class="kpi-val" style="color:var(--a3)">2.90%</div><div class="kpi-sub">190,491 kg waste</div><div class="kpi-delta delta-down">▼ Improving</div></div>
   </div>
 
-  <div class="chart-grid">
-    <div class="chart-card">
-      <h3>Monthly Production (kg)</h3>
-      <canvas id="prodKgChart"></canvas>
-    </div>
-    <div class="chart-card">
-      <h3>kg per Direct Labor Hour</h3>
-      <canvas id="prodEffChart"></canvas>
-    </div>
+  <div class="grid2">
+    <div class="ccard"><h3>Monthly Production (M kg)</h3><canvas id="prodKgChart"></canvas></div>
+    <div class="ccard"><h3>Monthly Waste %</h3><canvas id="prodWasteChart"></canvas></div>
+  </div>
+  <div class="grid2">
+    <div class="ccard"><h3>kg / Direct Labor Hour — Annual</h3><canvas id="prodEffChart"></canvas></div>
+    <div class="ccard"><h3>Annual Production & Waste Summary</h3><canvas id="prodAnnualChart"></canvas></div>
+  </div>
+  <div class="grid2">
+    <div class="ccard"><h3>Total Labor Hours per Month (k)</h3><canvas id="prodHoursChart"></canvas></div>
+    <div class="ccard"><h3>YTD Cumulative Production (M kg)</h3><canvas id="prodYtdChart"></canvas></div>
   </div>
 
-  <div class="chart-grid">
-    <div class="chart-card">
-      <h3>Monthly Waste %</h3>
-      <canvas id="prodWasteChart"></canvas>
-    </div>
-    <div class="chart-card">
-      <h3>Annual Production & Waste Summary</h3>
-      <canvas id="prodAnnualChart"></canvas>
-    </div>
-  </div>
-
-  <div class="chart-grid">
-    <div class="chart-card">
-      <h3>Total Labor Hours per Month</h3>
-      <canvas id="prodHoursChart"></canvas>
-    </div>
-    <div class="chart-card">
-      <h3>YTD Cumulative Production</h3>
-      <canvas id="prodYtdChart"></canvas>
-    </div>
-  </div>
-
-  <div class="chart-card" style="margin-bottom:22px">
-    <h3>Monthly Productivity Detail Table</h3>
-    <div class="data-table-wrap">
-      <table>
-        <thead>
-          <tr><th>Month</th><th>Prod 2023</th><th>Waste% 2023</th><th>kg/hr 2023</th><th>Prod 2024</th><th>Waste% 2024</th><th>kg/hr 2024</th><th>Prod 2025</th><th>Waste% 2025</th><th>kg/hr 2025</th><th>Prod 2026</th><th>Waste% 2026</th></tr>
-        </thead>
-        <tbody id="prodTbody"></tbody>
-      </table>
-    </div>
+  <div class="ccard" style="margin-bottom:20px;">
+    <h3>Monthly Productivity Detail</h3>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>Month</th><th>Prod 2023</th><th>Waste% 2023</th><th>Prod 2024</th><th>Waste% 2024</th><th>YoY%</th><th>Prod 2025</th><th>Waste% 2025</th><th>YoY%</th><th>Prod 2026</th><th>Waste% 2026</th></tr></thead>
+      <tbody id="prodTbody"></tbody>
+    </table></div>
   </div>
 </div>
 
 <script>
-// ═══════════════ DATA ═══════════════
+// ═══════════════════════════════ DATA STORE ═══════════════════════════════
+const D = {
+  safety: {
+    accidents: {
+      2023:[0,0,0,0,2,0,0,3,0,0,1,0],
+      2024:[0,0,0,2,1,2,1,0,0,1,1,1],
+      2025:[3,1,0,3,0,0,3,0,0,2,0,0],
+      2026:[3,1,3,1,4,0,0,0,0,0,0,0]
+    },
+    hours: {
+      2023:[39258.53,37502.28,43298.94,35759.09,45972.22,41218.79,32537.21,35283.33,41372.43,33492.45,43634.26,35502.76],
+      2024:[40324.01,41247.18,32669.85,43412.37,37283.43,36045.38,43438.08,33770.21,40701.65,45106.18,53534.71,46389.51],
+      2025:[48746.44,48276.36,45454.59,48840.07,54991.94,54862.98,60450.36,45208.79,58899.97,60230.65,60273.48,55982.26],
+      2026:[55211.62,57391.79,53414.87,53802.18,58639.79,0,0,0,0,0,0,0]
+    },
+    rate: {
+      2023:[0,0,0,0,43.50,0,0,85.03,0,0,22.92,0],
+      2024:[0,0,0,46.07,26.82,55.49,23.02,0,0,22.17,18.68,21.56],
+      2025:[61.54,20.71,0,61.42,0,0,49.63,0,0,33.21,0,0],
+      2026:[54.34,17.42,56.16,18.59,68.21,0,0,0,0,0,0,0]
+    },
+    annual: { rate:{2023:53.22,2024:18.22,2025:18.69,2026:43.09}, acc:{2023:6,2024:9,2025:12,2026:12} }
+  },
+  quality: {
+    incidents: {
+      2023:[50,44,42,37,46,25,19,21,23,63,62,55],
+      2024:[48,46,67,48,31,12,36,18,37,55,67,47],
+      2025:[64,52,46,62,39,47,32,30,50,75,82,56],
+      2026:[67,40,62,30,0,0,0,0,0,0,0,0]
+    },
+    kg: {
+      2023:[1955334,2140302,2099864,1730327,1969517,1675054,1843808,2290843,1898776,1814909,2076562,1886489],
+      2024:[1838713,1823211,1740731,2034388,1723496,1665177,1989155,1610414,1999516,2282877,2234281,1976415],
+      2025:[2115759,1729565,1599519,2175398,1975332,1777675,2288886,1990388,2458760,2173719,2411732,2509672],
+      2026:[1991459,1815086,1916342,1963364,0,0,0,0,0,0,0,0]
+    },
+    rate: {
+      2023:[25.57,20.56,20.00,21.38,23.36,14.92,10.30,9.17,12.11,34.71,29.86,29.15],
+      2024:[26.11,25.23,38.49,23.59,17.99,7.21,18.10,11.18,18.50,24.09,29.99,23.78],
+      2025:[30.25,30.07,28.76,28.50,19.74,26.44,13.98,15.07,20.34,34.50,34.00,22.31],
+      2026:[33.64,22.04,32.35,15.28,0,0,0,0,0,0,0,0]
+    },
+    annual: { rate:{2023:20.83,2024:22.34,2025:25.19,2026:25.89}, inc:{2023:487,2024:512,2025:635,2026:199} }
+  },
+  prod: {
+    kg: {
+      2023:[2018216,1866586,2259222,1773322,2433071,2198343,1399591,1773403,2213197,2176959,2103889,1903761],
+      2024:[1980000,1850000,2100000,2050000,1900000,1950000,2000000,1750000,2100000,2200000,2150000,2248167],
+      2025:[2200000,1950000,2000000,2350000,2400000,2300000,2500000,2100000,2600000,2450000,2550000,2776333],
+      2026:[2230000,2120000,2226403,0,0,0,0,0,0,0,0,0]
+    },
+    waste: {
+      2023:[3.06,4.16,3.30,3.64,4.06,3.43,1.20,1.08,2.28,3.13,3.65,3.35],
+      2024:[3.54,3.48,3.79,3.80,3.50,3.39,3.58,3.40,3.32,3.63,3.53,2.72],
+      2025:[3.61,3.62,3.32,3.84,3.69,3.75,3.65,3.71,3.85,3.73,3.65,2.10],
+      2026:[2.87,2.97,2.85,0,0,0,0,0,0,0,0,0]
+    },
+    hours: {
+      2023:[35000,32000,38000,30000,41000,40000,28000,33000,37000,36000,38000,35982],
+      2024:[36000,35000,40000,38000,36000,37000,39000,34000,38000,40000,45000,42371],
+      2025:[46000,44000,45000,50000,52000,50000,55000,47000,55000,54000,56000,57708],
+      2026:[46000,48000,46712,0,0,0,0,0,0,0,0,0]
+    },
+    annual: {
+      kg:{2023:24119563,2024:23278167,2025:28176333,2026:6576403},
+      waste:{2023:3.03,2024:3.62,2025:3.52,2026:2.90},
+      kghr:{2023:79.37,2024:77.26,2025:64.24,2026:null}
+    }
+  }
+};
+
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-
-const safety = {
-  accidents: {
-    2023: [0,0,0,0,2,0,0,3,0,0,1,0],
-    2024: [0,0,0,2,1,2,1,0,0,1,1,1],
-    2025: [3,1,0,3,0,0,3,0,0,2,0,0],
-    2026: [3,1,3,1,4,0,0,0,0,0,0,0]
-  },
-  hours: {
-    2023: [39258.53,37502.28,43298.94,35759.09,45972.22,41218.79,32537.21,35283.33,41372.43,33492.45,43634.26,35502.76],
-    2024: [40324.01,41247.18,32669.85,43412.37,37283.43,36045.38,43438.08,33770.21,40701.65,45106.18,53534.71,46389.51],
-    2025: [48746.44,48276.36,45454.59,48840.07,54991.94,54862.98,60450.36,45208.79,58899.97,60230.65,60273.48,55982.26],
-    2026: [55211.62,57391.79,53414.87,53802.18,58639.79,0,0,0,0,0,0,0]
-  },
-  rate: {
-    2023: [0,0,0,0,43.50,0,0,85.03,0,0,22.92,0],
-    2024: [0,0,0,46.07,26.82,55.49,23.02,0,0,22.17,18.68,21.56],
-    2025: [61.54,20.71,0,61.42,0,0,49.63,0,0,33.21,0,0],
-    2026: [54.34,17.42,56.16,18.59,68.21,0,0,0,0,0,0,0]
-  },
-  annualRate: {2023:53.22, 2024:18.22, 2025:18.69, 2026:43.09},
-  annualAcc:  {2023:6,     2024:9,     2025:12,    2026:12}
+const YRS = [2023,2024,2025,2026];
+const C = {
+  2023:{b:'rgba(79,142,247,1)',  bg:'rgba(79,142,247,0.2)'},
+  2024:{b:'rgba(247,201,72,1)', bg:'rgba(247,201,72,0.2)'},
+  2025:{b:'rgba(79,201,126,1)', bg:'rgba(79,201,126,0.2)'},
+  2026:{b:'rgba(247,110,110,1)',bg:'rgba(247,110,110,0.2)'}
 };
 
-const quality = {
-  incidents: {
-    2023: [50,44,42,37,46,25,19,21,23,63,62,55],
-    2024: [48,46,67,48,31,12,36,18,37,55,67,47],
-    2025: [64,52,46,62,39,47,32,30,50,75,82,56],
-    2026: [67,40,62,30,0,0,0,0,0,0,0,0]
-  },
-  sellingKg: {
-    2023: [1955334,2140302,2099864,1730327,1969517,1675054,1843808,2290843,1898776,1814909,2076562,1886489],
-    2024: [1838713,1823211,1740731,2034388,1723496,1665177,1989155,1610414,1999516,2282877,2234281,1976415],
-    2025: [2115759,1729565,1599519,2175398,1975332,1777675,2288886,1990388,2458760,2173719,2411732,2509672],
-    2026: [1991459,1815086,1916342,1963364,0,0,0,0,0,0,0,0]
-  },
-  rate: {
-    2023: [25.57,20.56,20.00,21.38,23.36,14.92,10.30,9.17,12.11,34.71,29.86,29.15],
-    2024: [26.11,25.23,38.49,23.59,17.99,7.21,18.10,11.18,18.50,24.09,29.99,23.78],
-    2025: [30.25,30.07,28.76,28.50,19.74,26.44,13.98,15.07,20.34,34.50,34.00,22.31],
-    2026: [33.64,22.04,32.35,15.28,0,0,0,0,0,0,0,0]
-  },
-  annualRate: {2023:20.83, 2024:22.34, 2025:25.19, 2026:25.89},
-  annualInc:  {2023:487,   2024:512,   2025:635,   2026:199}
-};
+// ─── STATE ───
+let safVis=[2023,2024,2025,2026], qualVis=[2023,2024,2025,2026], prodVis=[2023,2024,2025,2026];
+let safChartType='bar', qualChartType='bar';
+let safTargetVal=40, effThr=70, wasteThr=3.5;
+const CH={};
 
-const prod = {
-  kg: {
-    2023: [2018216,1866586,2259222,1773322,2433071,2198343,1399591,1773403,2213197,2176959,2103889,1903761],
-    2024: [1980000,1850000,2100000,2050000,1900000,1950000,2000000,1750000,2100000,2200000,2150000,2248167],
-    2025: [2200000,1950000,2000000,2350000,2400000,2300000,2500000,2100000,2600000,2450000,2550000,2776333],
-    2026: [2230000,2120000,2226403,0,0,0,0,0,0,0,0,0]
-  },
-  wasteKg: {
-    2023: [61667,77573,74561,64487,98714,75480,16739,19226,50436,68054,76849,63717],
-    2024: [70162,64285,79631,78011,66498,66041,71501,59512,69754,79866,75942,61198],
-    2025: [79340,70518,66406,90135,88497,86200,91310,77854,100041,91318,93000,58200],
-    2026: [64000,63000,63491,0,0,0,0,0,0,0,0,0]
-  },
-  wastePct: {
-    2023: [3.06,4.16,3.30,3.64,4.06,3.43,1.20,1.08,2.28,3.13,3.65,3.35],
-    2024: [3.54,3.48,3.79,3.80,3.50,3.39,3.58,3.40,3.32,3.63,3.53,2.72],
-    2025: [3.61,3.62,3.32,3.84,3.69,3.75,3.65,3.71,3.85,3.73,3.65,2.10],
-    2026: [2.87,2.97,2.85,0,0,0,0,0,0,0,0,0]
-  },
-  kgPerHr: {
-    2023: [null,null,null,null,null,null,null,null,null,null,null,null], // not monthly in src
-    2024: [null,null,null,null,null,null,null,null,null,null,null,null],
-    2025: [null,null,null,null,null,null,null,null,null,null,null,null],
-    2026: [null,null,null,null,null,null,null,null,null,null,null,null]
-  },
-  totalHrs: {
-    2023: [35000,32000,38000,30000,41000,40000,28000,33000,37000,36000,38000,35982],
-    2024: [36000,35000,40000,38000,36000,37000,39000,34000,38000,40000,45000,42371],
-    2025: [46000,44000,45000,50000,52000,50000,55000,47000,55000,54000,56000,57708],
-    2026: [46000,48000,46712,0,0,0,0,0,0,0,0,0]
-  },
-  kgDirect: {
-    2023: [null,null,null,null,null,null,null,null,null,null,null,79.37],
-    2024: [null,null,null,null,null,null,null,null,null,null,null,77.26],
-    2025: [null,null,null,null,null,null,null,null,null,null,null,64.24],
-    2026: [null,null,null,null,null,null,null,null,null,null,null,null]
-  },
-  annualKg:   {2023:24119563, 2024:23278167, 2025:28176333, 2026:6576403},
-  annualWaste: {2023:3.03,    2024:3.62,     2025:3.52,     2026:2.90}
-};
-
-// ═══════════════ COLOURS ═══════════════
-const YR_COLOR = {
-  2023: {border:'rgba(79,142,247,1)',   bg:'rgba(79,142,247,0.25)'},
-  2024: {border:'rgba(247,201,72,1)',   bg:'rgba(247,201,72,0.25)'},
-  2025: {border:'rgba(79,201,126,1)',   bg:'rgba(79,201,126,0.25)'},
-  2026: {border:'rgba(247,110,110,1)',  bg:'rgba(247,110,110,0.25)'}
-};
-
-// ═══════════════ STATE ═══════════════
-let safetyVisibleYears  = [2023,2024,2025,2026];
-let qualityVisibleYears = [2023,2024,2025,2026];
-let prodVisibleYears    = [2023,2024,2025,2026];
-let safetyChartType = 'bar';
-let qualityChartType = 'bar';
-let safetyTarget = 40;
-let effThreshold = 70;
-
-// ═══════════════ CHART INSTANCES ═══════════════
-const charts = {};
-
-function makeChart(id, cfg) {
-  if (charts[id]) charts[id].destroy();
-  const ctx = document.getElementById(id).getContext('2d');
-  charts[id] = new Chart(ctx, cfg);
-  return charts[id];
-}
-
-// ═══════════════ SAFETY CHARTS ═══════════════
-function buildSafetyCharts() {
-  // Monthly rate
-  makeChart('safetyRateChart', {
-    type: safetyChartType,
-    data: {
-      labels: MONTHS,
-      datasets: safetyVisibleYears.map(y => ({
-        label: String(y),
-        data: safety.rate[y],
-        borderColor: YR_COLOR[y].border,
-        backgroundColor: safetyChartType === 'line' ? YR_COLOR[y].bg : YR_COLOR[y].border,
-        borderWidth: 2, fill: safetyChartType === 'line', tension: .4,
-        pointRadius: 4, pointHoverRadius: 6
-      }))
-    },
-    options: {
-      ...baseOpts('Rate / 1M hrs'),
-      plugins: {
-        ...baseOpts().plugins,
-        annotation: { annotations: {
-          target: { type:'line', yMin: safetyTarget, yMax: safetyTarget,
-            borderColor:'rgba(255,255,255,0.4)', borderWidth:1.5, borderDash:[6,4],
-            label:{ content:`Target: ${safetyTarget}`, display:true, color:'#fff', font:{size:10} }
-          }
-        }}
-      }
-    }
-  });
-
-  // Annual count
-  makeChart('safetyCountChart', {
-    type: 'bar',
-    data: {
-      labels: ['2023','2024','2025','2026 YTD'],
-      datasets: [{
-        label: 'Accidents',
-        data: [6,9,12,12],
-        backgroundColor: [YR_COLOR[2023].border,YR_COLOR[2024].border,YR_COLOR[2025].border,YR_COLOR[2026].border],
-        borderRadius: 6
-      },{
-        label: 'Annual Rate',
-        data: [53.22,18.22,18.69,43.09],
-        backgroundColor: 'transparent',
-        borderColor: '#fff',
-        borderWidth: 2,
-        type: 'line',
-        yAxisID: 'y2',
-        tension: .4, pointRadius: 5
-      }]
-    },
-    options: {
-      ...baseOpts('Count'),
-      scales: {
-        x: darkAxis(),
-        y: darkAxis('Accidents'),
-        y2: {...darkAxis('Rate'), position:'right', grid:{display:false}}
-      }
-    }
-  });
-
-  // Man-hours
-  makeChart('safetyHoursChart', {
-    type: 'line',
-    data: {
-      labels: MONTHS,
-      datasets: safetyVisibleYears.map(y => ({
-        label: String(y),
-        data: safety.hours[y].map(v => v > 0 ? +(v/1000).toFixed(1) : null),
-        borderColor: YR_COLOR[y].border, backgroundColor: YR_COLOR[y].bg,
-        borderWidth: 2, fill: false, tension: .4, pointRadius: 3
-      }))
-    },
-    options: baseOpts('Man-hours (k)')
-  });
-
-  // YTD cumulative rate
-  const ytdRate = {};
-  [2023,2024,2025,2026].forEach(y => {
-    let cumAcc = 0, cumHrs = 0;
-    ytdRate[y] = [];
-    for (let i = 0; i < 12; i++) {
-      cumAcc += safety.accidents[y][i];
-      cumHrs += safety.hours[y][i];
-      ytdRate[y].push(cumHrs > 0 ? +(cumAcc / cumHrs * 1e6).toFixed(2) : null);
-    }
-  });
-  makeChart('safetyYtdChart', {
-    type: 'line',
-    data: {
-      labels: MONTHS,
-      datasets: safetyVisibleYears.map(y => ({
-        label: String(y),
-        data: ytdRate[y],
-        borderColor: YR_COLOR[y].border, backgroundColor: 'transparent',
-        borderWidth: 2, tension: .4, pointRadius: 3
-      }))
-    },
-    options: baseOpts('Cumulative Rate / 1M hrs')
-  });
-
-  buildSafetyTable();
-}
-
-function buildSafetyTable() {
-  const tb = document.getElementById('safetyTbody');
-  tb.innerHTML = '';
-  MONTHS.forEach((m, i) => {
-    const r = document.createElement('tr');
-    const rate2026 = safety.rate[2026][i];
-    r.innerHTML = `<td>${m}</td>
-      <td>${safety.accidents[2023][i]}</td><td>${safety.rate[2023][i] || '—'}</td>
-      <td>${safety.accidents[2024][i]}</td><td ${safety.rate[2024][i]>safetyTarget?'class="bad"':safety.rate[2024][i]>0?'class="warn"':''}>${safety.rate[2024][i] || '—'}</td>
-      <td>${safety.accidents[2025][i]}</td><td ${safety.rate[2025][i]>safetyTarget?'class="bad"':safety.rate[2025][i]>0?'class="warn"':''}>${safety.rate[2025][i] || '—'}</td>
-      <td>${safety.accidents[2026][i] || (i<5?safety.accidents[2026][i]:'—')}</td>
-      <td ${rate2026>safetyTarget?'class="bad"':rate2026>0?'class="warn"':''}>${i<5?(rate2026||'0'):'—'}</td>`;
-    tb.appendChild(r);
-  });
-}
-
-// ═══════════════ QUALITY CHARTS ═══════════════
-function buildQualityCharts() {
-  const metric = document.getElementById('qualityMetricSel').value;
-  const getD = y => metric === 'rate' ? quality.rate[y]
-                  : metric === 'incidents' ? quality.incidents[y]
-                  : quality.sellingKg[y].map(v => v > 0 ? +(v/1e6).toFixed(3) : null);
-  const label = metric === 'rate' ? 'Rate / 1M kg' : metric === 'incidents' ? 'Incidents' : 'Selling kg (M)';
-
-  makeChart('qualityRateChart', {
-    type: qualityChartType,
-    data: {
-      labels: MONTHS,
-      datasets: qualityVisibleYears.map(y => ({
-        label: String(y),
-        data: getD(y).map((v,i) => (i >= [0,0,0,4][qualityVisibleYears.indexOf(y)] || y < 2026) ? v : null),
-        borderColor: YR_COLOR[y].border,
-        backgroundColor: qualityChartType==='line' ? YR_COLOR[y].bg : YR_COLOR[y].border,
-        borderWidth: 2, fill: false, tension: .4, pointRadius: 4
-      }))
-    },
-    options: baseOpts(label)
-  });
-
-  makeChart('qualityAnnualChart', {
-    type: 'bar',
-    data: {
-      labels: ['2023','2024','2025','2026 YTD'],
-      datasets: [
-        { label:'Incidents', data:[487,512,635,199], backgroundColor:[YR_COLOR[2023].border,YR_COLOR[2024].border,YR_COLOR[2025].border,YR_COLOR[2026].border], borderRadius:6, yAxisID:'y' },
-        { label:'Rate/1M kg', data:[20.83,22.34,25.19,25.89], type:'line', borderColor:'rgba(255,255,255,0.8)', borderWidth:2, tension:.4, pointRadius:5, yAxisID:'y2', backgroundColor:'transparent' }
-      ]
-    },
-    options: {
-      ...baseOpts('Incidents'),
-      scales: {
-        x: darkAxis(), y: darkAxis('Incidents'),
-        y2: {...darkAxis('Rate'), position:'right', grid:{display:false}}
-      }
-    }
-  });
-
-  makeChart('qualityCountChart', {
-    type: qualityChartType,
-    data: {
-      labels: MONTHS,
-      datasets: qualityVisibleYears.map(y => ({
-        label: String(y),
-        data: quality.incidents[y].map(v => v > 0 ? v : (y===2026 ? null : v)),
-        borderColor: YR_COLOR[y].border,
-        backgroundColor: qualityChartType==='line' ? 'transparent' : YR_COLOR[y].border,
-        borderWidth: 2, fill: false, tension: .4, pointRadius: 3
-      }))
-    },
-    options: baseOpts('Incidents')
-  });
-
-  // YTD cumulative incidents
-  const ytdInc = {};
-  [2023,2024,2025,2026].forEach(y => {
-    let cum = 0;
-    ytdInc[y] = quality.incidents[y].map(v => { cum += v; return cum > 0 ? cum : null; });
-  });
-  makeChart('qualityYtdChart', {
-    type: 'line',
-    data: {
-      labels: MONTHS,
-      datasets: qualityVisibleYears.map(y => ({
-        label: String(y),
-        data: ytdInc[y],
-        borderColor: YR_COLOR[y].border, backgroundColor:'transparent',
-        borderWidth:2, tension:.4, pointRadius:3
-      }))
-    },
-    options: baseOpts('Cumulative Incidents')
-  });
-
-  buildQualityTable();
-}
-
-function buildQualityTable() {
-  const tb = document.getElementById('qualityTbody');
-  tb.innerHTML = '';
-  MONTHS.forEach((m, i) => {
-    const r = document.createElement('tr');
-    const r26 = quality.rate[2026][i];
-    r.innerHTML = `<td>${m}</td>
-      <td>${quality.incidents[2023][i]}</td><td>${quality.rate[2023][i]}</td>
-      <td>${quality.incidents[2024][i]}</td><td ${quality.rate[2024][i]>25?'class="bad"':quality.rate[2024][i]<15?'class="good"':'class="warn"'}>${quality.rate[2024][i]}</td>
-      <td>${quality.incidents[2025][i]}</td><td ${quality.rate[2025][i]>25?'class="bad"':quality.rate[2025][i]<15?'class="good"':'class="warn"'}>${quality.rate[2025][i]}</td>
-      <td>${i<4?quality.incidents[2026][i]:'—'}</td>
-      <td ${i<4?(r26>25?'class="bad"':r26<15?'class="good"':'class="warn"'):''}>${i<4?r26:'—'}</td>`;
-    tb.appendChild(r);
-  });
-}
-
-// ═══════════════ PRODUCTIVITY CHARTS ═══════════════
-function buildProdCharts() {
-  // Monthly production
-  makeChart('prodKgChart', {
-    type: 'bar',
-    data: {
-      labels: MONTHS,
-      datasets: prodVisibleYears.map(y => ({
-        label: String(y),
-        data: prod.kg[y].map(v => v > 0 ? +(v/1e6).toFixed(3) : null),
-        backgroundColor: YR_COLOR[y].bg,
-        borderColor: YR_COLOR[y].border,
-        borderWidth: 2, borderRadius: 4
-      }))
-    },
-    options: baseOpts('Production (M kg)')
-  });
-
-  // kg per direct labor hr — only annual available
-  makeChart('prodEffChart', {
-    type: 'bar',
-    data: {
-      labels: ['2023','2024','2025'],
-      datasets: [{
-        label: 'kg / Direct Labor Hr',
-        data: [79.37, 77.26, 64.24],
-        backgroundColor: [YR_COLOR[2023].border, YR_COLOR[2024].border, YR_COLOR[2025].border],
-        borderRadius: 8
-      },{
-        label: `Threshold (${effThreshold})`,
-        data: [effThreshold, effThreshold, effThreshold],
-        type: 'line', borderColor: 'rgba(255,255,255,0.5)', borderWidth: 2,
-        borderDash: [5,5], pointRadius: 0, backgroundColor:'transparent'
-      }]
-    },
-    options: baseOpts('kg / hr')
-  });
-
-  // Waste %
-  makeChart('prodWasteChart', {
-    type: 'line',
-    data: {
-      labels: MONTHS,
-      datasets: prodVisibleYears.map(y => ({
-        label: String(y),
-        data: prod.wastePct[y].map(v => v > 0 ? v : null),
-        borderColor: YR_COLOR[y].border, backgroundColor: YR_COLOR[y].bg,
-        borderWidth: 2, fill: false, tension: .4, pointRadius: 3
-      }))
-    },
-    options: baseOpts('Waste %')
-  });
-
-  // Annual summary
-  makeChart('prodAnnualChart', {
-    type: 'bar',
-    data: {
-      labels: ['2023','2024','2025','2026 YTD'],
-      datasets: [
-        { label:'Production (M kg)', data:[24.12,23.28,28.18,6.58], backgroundColor:[YR_COLOR[2023].border,YR_COLOR[2024].border,YR_COLOR[2025].border,YR_COLOR[2026].border], borderRadius:6, yAxisID:'y' },
-        { label:'Waste %', data:[3.03,3.62,3.52,2.90], type:'line', borderColor:'rgba(247,110,110,1)', borderWidth:2, tension:.3, pointRadius:5, yAxisID:'y2', backgroundColor:'transparent' }
-      ]
-    },
-    options: {
-      ...baseOpts('M kg'),
-      scales: {
-        x: darkAxis(), y: darkAxis('Production (M kg)'),
-        y2: { ...darkAxis('Waste %'), position:'right', grid:{display:false} }
-      }
-    }
-  });
-
-  // Hours
-  makeChart('prodHoursChart', {
-    type: 'bar',
-    data: {
-      labels: MONTHS,
-      datasets: prodVisibleYears.map(y => ({
-        label: String(y),
-        data: prod.totalHrs[y].map(v => v > 0 ? +(v/1000).toFixed(1) : null),
-        backgroundColor: YR_COLOR[y].bg,
-        borderColor: YR_COLOR[y].border,
-        borderWidth: 2, borderRadius: 4
-      }))
-    },
-    options: baseOpts('Hours (k)')
-  });
-
-  // YTD cumulative production
-  const ytdKg = {};
-  [2023,2024,2025,2026].forEach(y => {
-    let cum = 0;
-    ytdKg[y] = prod.kg[y].map(v => { if (v>0) cum += v; return cum > 0 ? +(cum/1e6).toFixed(2) : null; });
-  });
-  makeChart('prodYtdChart', {
-    type: 'line',
-    data: {
-      labels: MONTHS,
-      datasets: prodVisibleYears.map(y => ({
-        label: String(y),
-        data: ytdKg[y],
-        borderColor: YR_COLOR[y].border, backgroundColor: 'transparent',
-        borderWidth:2, tension:.4, pointRadius:3
-      }))
-    },
-    options: baseOpts('Cumulative Production (M kg)')
-  });
-
-  buildProdTable();
-}
-
-function buildProdTable() {
-  const tb = document.getElementById('prodTbody');
-  tb.innerHTML = '';
-  MONTHS.forEach((m,i) => {
-    const r = document.createElement('tr');
-    const fmt = v => v > 0 ? (v/1e6).toFixed(3)+'M' : '—';
-    const fmtP = v => v > 0 ? v.toFixed(2)+'%' : '—';
-    const cls = v => v > 4 ? 'class="bad"' : v > 3.5 ? 'class="warn"' : v > 0 ? 'class="good"' : '';
-    r.innerHTML = `<td>${m}</td>
-      <td>${fmt(prod.kg[2023][i])}</td><td ${cls(prod.wastePct[2023][i])}>${fmtP(prod.wastePct[2023][i])}</td><td>—</td>
-      <td>${fmt(prod.kg[2024][i])}</td><td ${cls(prod.wastePct[2024][i])}>${fmtP(prod.wastePct[2024][i])}</td><td>—</td>
-      <td>${fmt(prod.kg[2025][i])}</td><td ${cls(prod.wastePct[2025][i])}>${fmtP(prod.wastePct[2025][i])}</td><td>—</td>
-      <td>${i<3?fmt(prod.kg[2026][i]):'—'}</td><td ${i<3?cls(prod.wastePct[2026][i]):''}>${i<3?fmtP(prod.wastePct[2026][i]):'—'}</td>`;
-    tb.appendChild(r);
-  });
-}
-
-// ═══════════════ CHART HELPERS ═══════════════
-function darkAxis(label) {
-  return { ticks:{color:'#8890a8',font:{size:11}}, grid:{color:'rgba(255,255,255,0.05)'}, title: label ? {display:true,text:label,color:'#8890a8',font:{size:11}} : undefined };
-}
-function baseOpts(yLabel) {
-  return {
-    responsive:true, maintainAspectRatio:true,
-    interaction:{mode:'index', intersect:false},
+// ─── HELPERS ───
+function mkChart(id,cfg){if(CH[id])CH[id].destroy();const ctx=document.getElementById(id).getContext('2d');CH[id]=new Chart(ctx,cfg);return CH[id];}
+function darkX(lbl){return{ticks:{color:'#7a829e',font:{size:10}},grid:{color:'rgba(255,255,255,0.04)'},title:lbl?{display:true,text:lbl,color:'#7a829e',font:{size:10}}:undefined};}
+function baseOpts(yLbl,y2){
+  const s={x:darkX(),y:darkX(yLbl)};
+  if(y2)s.y2={...darkX(y2),position:'right',grid:{display:false}};
+  return{
+    responsive:true,maintainAspectRatio:true,
+    interaction:{mode:'index',intersect:false},
     plugins:{
-      legend:{ labels:{color:'#e8eaf0', boxWidth:12, font:{size:11}} },
-      tooltip:{ backgroundColor:'rgba(20,22,35,0.95)', titleColor:'#e8eaf0', bodyColor:'#8890a8', borderColor:'rgba(255,255,255,0.1)', borderWidth:1 }
+      legend:{labels:{color:'#e8eaf0',boxWidth:11,font:{size:11}}},
+      tooltip:{backgroundColor:'rgba(14,16,24,.97)',titleColor:'#e8eaf0',bodyColor:'#7a829e',
+               borderColor:'rgba(255,255,255,.1)',borderWidth:1,padding:10,cornerRadius:8},
+      datalabels:{display:false}
     },
-    scales:{ x: darkAxis(), y: darkAxis(yLabel) }
+    scales:s
   };
 }
+function cutAt(arr,n){return arr.slice(0,n).map(v=>v>0?v:null);}
+function monthTo(selId){return +document.getElementById(selId).value;}
 
-// ═══════════════ INTERACTIVITY ═══════════════
-function switchTab(name, btn) {
-  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+// ─── YEAR TOGGLES ───
+function togYear(ns,btn){
+  const y=+btn.dataset.year;
+  btn.classList.toggle('on');
+  const map={saf:'safVis',qual:'qualVis',prod:'prodVis'};
+  const ref=map[ns];
+  if(ns==='saf'){safVis=safVis.includes(y)?safVis.filter(x=>x!==y):[...safVis,y].sort();}
+  if(ns==='qual'){qualVis=qualVis.includes(y)?qualVis.filter(x=>x!==y):[...qualVis,y].sort();}
+  if(ns==='prod'){prodVis=prodVis.includes(y)?prodVis.filter(x=>x!==y):[...prodVis,y].sort();}
+  if(ns==='saf')buildSafety();
+  if(ns==='qual')buildQuality();
+  if(ns==='prod')buildProd();
+}
+
+// ─── TAB SWITCH ───
+function switchTab(name,btn){
+  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
   document.getElementById('tab-'+name).classList.add('active');
   btn.classList.add('active');
 }
 
-function toggleSafetyYear(btn) {
-  const y = +btn.dataset.year;
-  btn.classList.toggle('on');
-  if (safetyVisibleYears.includes(y)) safetyVisibleYears = safetyVisibleYears.filter(x => x!==y);
-  else safetyVisibleYears.push(y);
-  buildSafetyCharts();
-}
-function toggleQualityYear(btn) {
-  const y = +btn.dataset.year;
-  btn.classList.toggle('on');
-  if (qualityVisibleYears.includes(y)) qualityVisibleYears = qualityVisibleYears.filter(x => x!==y);
-  else qualityVisibleYears.push(y);
-  buildQualityCharts();
-}
-function toggleProdYear(btn) {
-  const y = +btn.dataset.year;
-  btn.classList.toggle('on');
-  if (prodVisibleYears.includes(y)) prodVisibleYears = prodVisibleYears.filter(x => x!==y);
-  else prodVisibleYears.push(y);
-  buildProdCharts();
+// ═══════════════════ OVERVIEW ═══════════════════
+function buildOverview(){
+  // Progress bars — safety
+  const safData=[{y:2023,r:53.22,max:60},{y:2024,r:18.22,max:60},{y:2025,r:18.69,max:60},{y:'2026 YTD',r:43.09,max:60}];
+  const sp=document.getElementById('ov-safety-prog');sp.innerHTML='';
+  safData.forEach(d=>{
+    const color=d.r>40?'#f76e6e':d.r>20?'#f7c948':'#4fc97e';
+    sp.innerHTML+=`<div class="prog-item"><span class="p-label">${d.y}</span>
+      <div class="p-bar-wrap"><div class="p-bar" style="width:${Math.min(100,(d.r/d.max*100)).toFixed(1)}%;background:${color};"></div></div>
+      <span class="p-val" style="color:${color}">${d.r}</span></div>`;
+  });
+
+  // Progress bars — quality
+  const qData=[{y:2023,r:20.83,max:35},{y:2024,r:22.34,max:35},{y:2025,r:25.19,max:35},{y:'2026 YTD',r:25.89,max:35}];
+  const qp=document.getElementById('ov-quality-prog');qp.innerHTML='';
+  qData.forEach(d=>{
+    const color=d.r>25?'#f76e6e':d.r>22?'#f7c948':'#4fc97e';
+    qp.innerHTML+=`<div class="prog-item"><span class="p-label">${d.y}</span>
+      <div class="p-bar-wrap"><div class="p-bar" style="width:${(d.r/d.max*100).toFixed(1)}%;background:${color};"></div></div>
+      <span class="p-val" style="color:${color}">${d.r}</span></div>`;
+  });
+
+  // Safety trend mini-chart
+  mkChart('ov-safety-chart',{type:'line',data:{labels:['2023','2024','2025','2026 YTD'],datasets:[{data:[53.22,18.22,18.69,43.09],borderColor:'#f76e6e',backgroundColor:'rgba(247,110,110,.15)',fill:true,tension:.4,pointRadius:5,pointBackgroundColor:'#f76e6e',borderWidth:2}]},
+    options:{...baseOpts('Rate / 1M hrs'),plugins:{...baseOpts().plugins,datalabels:{display:true,color:'#e8eaf0',font:{size:10,weight:'bold'},anchor:'top',align:'top'}}}});
+
+  // Quality trend mini-chart
+  mkChart('ov-quality-chart',{type:'line',data:{labels:['2023','2024','2025','2026 YTD'],datasets:[{data:[20.83,22.34,25.19,25.89],borderColor:'#f7c948',backgroundColor:'rgba(247,201,72,.15)',fill:true,tension:.4,pointRadius:5,pointBackgroundColor:'#f7c948',borderWidth:2}]},
+    options:{...baseOpts('Rate / 1M kg'),plugins:{...baseOpts().plugins,datalabels:{display:true,color:'#e8eaf0',font:{size:10,weight:'bold'},anchor:'top',align:'top'}}}});
+
+  // Production bar
+  mkChart('ov-prod-chart',{type:'bar',data:{labels:['2023','2024','2025','2026 YTD'],
+    datasets:[{label:'M kg',data:[24.12,23.28,28.18,6.58],backgroundColor:[C[2023].b,C[2024].b,C[2025].b,C[2026].b],borderRadius:8}]},
+    options:{...baseOpts('M kg'),plugins:{...baseOpts().plugins,datalabels:{display:true,color:'#fff',font:{size:11,weight:'bold'},anchor:'end',align:'top'}}}});
+
+  // Waste bar
+  mkChart('ov-waste-chart',{type:'bar',data:{labels:['2023','2024','2025','2026 YTD'],
+    datasets:[{label:'Waste %',data:[3.03,3.62,3.52,2.90],backgroundColor:['#4f8ef7','#f7c948','#f76e6e','#4fc97e'],borderRadius:8}]},
+    options:{...baseOpts('Waste %'),plugins:{...baseOpts().plugins,datalabels:{display:true,color:'#fff',font:{size:11,weight:'bold'},anchor:'end',align:'top'}}}});
+
+  // Gauge: safety
+  mkChart('g-safety',{type:'doughnut',data:{datasets:[{data:[43.09,100-43.09],backgroundColor:['#f76e6e','rgba(255,255,255,.05)'],borderWidth:0,circumference:270,rotation:-135}]},
+    options:{cutout:'72%',plugins:{legend:{display:false},datalabels:{display:false},tooltip:{enabled:false}},maintainAspectRatio:true}});
+
+  // Gauge: quality years
+  mkChart('g-quality',{type:'doughnut',data:{labels:['2023','2024','2025','2026'],datasets:[{data:[20.83,22.34,25.19,25.89],backgroundColor:['#4f8ef7','#f7c948','#4fc97e','#f76e6e'],borderWidth:2,borderColor:'#161923'}]},
+    options:{cutout:'55%',plugins:{legend:{display:false},datalabels:{display:false}},maintainAspectRatio:true}});
+
+  // Gauge: production mix
+  mkChart('g-prod',{type:'doughnut',data:{labels:['Good product','Waste'],datasets:[{data:[28176333-992618,992618],backgroundColor:['#4fc97e','#f76e6e'],borderWidth:2,borderColor:'#161923'}]},
+    options:{cutout:'60%',plugins:{legend:{display:false},datalabels:{display:false}},maintainAspectRatio:true}});
+
+  // Gauge: 2026 waste
+  mkChart('g-waste',{type:'doughnut',data:{labels:['Product','Waste'],datasets:[{data:[97.1,2.9],backgroundColor:['#4f8ef7','#f7c948'],borderWidth:2,borderColor:'#161923'}]},
+    options:{cutout:'60%',plugins:{legend:{display:false},datalabels:{display:false}},maintainAspectRatio:true}});
 }
 
-function changeSafetyChartType(t) { safetyChartType = t; buildSafetyCharts(); }
-function changeQualityChartType(t) { qualityChartType = t; buildQualityCharts(); }
-function updateQualityCharts() { buildQualityCharts(); }
+// ═══════════════════ SAFETY ═══════════════════
+function buildSafety(){
+  const n=monthTo('safMonthTo');
+  const lbl=MONTHS.slice(0,n);
 
-function updateTarget(v) {
-  safetyTarget = +v;
-  document.getElementById('targetVal').textContent = v;
-  buildSafetyCharts();
-}
-function updateEffThreshold(v) {
-  effThreshold = +v;
-  document.getElementById('effVal').textContent = v;
-  buildProdCharts();
+  mkChart('safRateChart',{type:safChartType,data:{labels:lbl,datasets:safVis.map(y=>({
+    label:String(y),data:cutAt(D.safety.rate[y],n),
+    borderColor:C[y].b,backgroundColor:safChartType==='line'?C[y].bg:C[y].b,
+    borderWidth:2,fill:safChartType==='line',tension:.4,pointRadius:3,borderRadius:safChartType==='bar'?4:0
+  }))},options:{...baseOpts('Rate / 1M hrs'),plugins:{...baseOpts().plugins,
+    annotation:{annotations:{target:{type:'line',yMin:safTargetVal,yMax:safTargetVal,
+      borderColor:'rgba(255,255,255,.4)',borderWidth:1.5,borderDash:[5,4],
+      label:{content:'Target: '+safTargetVal,display:true,color:'#e8eaf0',font:{size:9},position:'end'}}}}}}});
+
+  // YTD cumulative rate
+  const ytdR={};
+  YRS.forEach(y=>{let ca=0,ch=0;ytdR[y]=[];
+    for(let i=0;i<n;i++){ca+=D.safety.accidents[y][i];ch+=D.safety.hours[y][i];
+      ytdR[y].push(ch>0?+(ca/ch*1e6).toFixed(2):null);}});
+  mkChart('safYtdChart',{type:'line',data:{labels:lbl,datasets:safVis.map(y=>({
+    label:String(y),data:ytdR[y],borderColor:C[y].b,backgroundColor:'transparent',
+    borderWidth:2,tension:.4,pointRadius:3}))},options:baseOpts('Cumulative Rate / 1M hrs')});
+
+  mkChart('safAnnualChart',{type:'bar',data:{labels:['2023','2024','2025','2026 YTD'],datasets:[
+    {label:'Accidents',data:[6,9,12,12],backgroundColor:[C[2023].b,C[2024].b,C[2025].b,C[2026].b],borderRadius:6,yAxisID:'y'},
+    {label:'Rate',data:[53.22,18.22,18.69,43.09],type:'line',borderColor:'rgba(255,255,255,.7)',borderWidth:2,tension:.4,pointRadius:5,yAxisID:'y2',backgroundColor:'transparent'}
+  ]},options:baseOpts('Accidents','Rate')});
+
+  mkChart('safHoursChart',{type:'line',data:{labels:lbl,datasets:safVis.map(y=>({
+    label:String(y),data:cutAt(D.safety.hours[y],n).map(v=>v>0?+(v/1000).toFixed(1):null),
+    borderColor:C[y].b,backgroundColor:'transparent',borderWidth:2,tension:.4,pointRadius:3}))},
+    options:baseOpts('k hours')});
+
+  // Table
+  const tb=document.getElementById('safTbody');tb.innerHTML='';
+  MONTHS.slice(0,n).forEach((m,i)=>{
+    const r26=D.safety.rate[2026][i];
+    const hasMay26=i<5;
+    tb.innerHTML+=`<tr><td>${m}</td>
+      <td>${D.safety.accidents[2023][i]}</td><td class="${D.safety.rate[2023][i]>safTargetVal?'bad':D.safety.rate[2023][i]>0?'warn':''}">${D.safety.rate[2023][i]||'—'}</td>
+      <td>${D.safety.accidents[2024][i]}</td><td class="${D.safety.rate[2024][i]>safTargetVal?'bad':D.safety.rate[2024][i]>0?'warn':''}">${D.safety.rate[2024][i]||'—'}</td>
+      <td>${D.safety.accidents[2025][i]}</td><td class="${D.safety.rate[2025][i]>safTargetVal?'bad':D.safety.rate[2025][i]>0?'warn':''}">${D.safety.rate[2025][i]||'—'}</td>
+      <td>${D.safety.accidents[2026][i]||(hasMay26?0:'—')}</td>
+      <td class="${hasMay26&&r26>safTargetVal?'bad':hasMay26&&r26>0?'warn':''}">${hasMay26?(r26||'0'):'—'}</td></tr>`;
+  });
+  document.getElementById('saf-target-disp').textContent=safTargetVal;
 }
 
-// ═══════════════ FILE UPLOAD (CSV update) ═══════════════
-document.getElementById('fileUpload').addEventListener('change', function(e) {
-  const file = e.target.files[0];
-  if (!file) return;
-  const status = document.getElementById('uploadStatus');
-  status.textContent = `✓ File "${file.name}" loaded. Manual data entry required for full Excel parsing.`;
-  document.getElementById('lastUpdated').textContent = 'Last updated: ' + new Date().toLocaleDateString('en-GB', {month:'short', year:'numeric'});
-  setTimeout(() => status.textContent = '', 4000);
+// ═══════════════════ QUALITY ═══════════════════
+function buildQuality(){
+  const n=monthTo('qualMonthTo');
+  const m=document.getElementById('qualMetric').value;
+  const lbl=MONTHS.slice(0,n);
+  const getD=y=>m==='rate'?D.quality.rate[y]:m==='inc'?D.quality.incidents[y]:D.quality.kg[y].map(v=>v>0?+(v/1e6).toFixed(3):null);
+  const yLbl=m==='rate'?'Rate / 1M kg':m==='inc'?'Incidents':'Selling kg (M)';
+
+  if(qualChartType==='radar'){
+    mkChart('qualRateChart',{type:'radar',data:{labels:lbl,datasets:qualVis.map(y=>({
+      label:String(y),data:cutAt(getD(y),n),borderColor:C[y].b,backgroundColor:C[y].bg,borderWidth:2,pointRadius:3}))},
+      options:{plugins:{legend:{labels:{color:'#e8eaf0'}},datalabels:{display:false}},scales:{r:{ticks:{color:'#7a829e',backdropColor:'transparent'},grid:{color:'rgba(255,255,255,.07)'},angleLines:{color:'rgba(255,255,255,.07)'},pointLabels:{color:'#7a829e',font:{size:10}}}}}});
+  } else {
+    mkChart('qualRateChart',{type:qualChartType,data:{labels:lbl,datasets:qualVis.map(y=>({
+      label:String(y),data:cutAt(getD(y),n),borderColor:C[y].b,
+      backgroundColor:qualChartType==='line'?C[y].bg:C[y].b,
+      borderWidth:2,fill:false,tension:.4,pointRadius:3,borderRadius:4}))},options:baseOpts(yLbl)});
+  }
+
+  mkChart('qualCountChart',{type:qualChartType==='radar'?'bar':qualChartType,data:{labels:lbl,datasets:qualVis.map(y=>({
+    label:String(y),data:cutAt(D.quality.incidents[y],n).map(v=>v>0?v:null),
+    borderColor:C[y].b,backgroundColor:qualChartType==='line'?'transparent':C[y].b,
+    borderWidth:2,fill:false,tension:.4,pointRadius:3,borderRadius:4}))},options:baseOpts('Incidents')});
+
+  mkChart('qualAnnualChart',{type:'bar',data:{labels:['2023','2024','2025','2026 YTD'],datasets:[
+    {label:'Incidents',data:[487,512,635,199],backgroundColor:[C[2023].b,C[2024].b,C[2025].b,C[2026].b],borderRadius:6,yAxisID:'y'},
+    {label:'Rate/1M kg',data:[20.83,22.34,25.19,25.89],type:'line',borderColor:'rgba(255,255,255,.7)',borderWidth:2,tension:.4,pointRadius:5,yAxisID:'y2',backgroundColor:'transparent'}
+  ]},options:baseOpts('Incidents','Rate')});
+
+  const ytdI={};
+  YRS.forEach(y=>{let c=0;ytdI[y]=D.quality.incidents[y].slice(0,n).map(v=>{c+=v;return c>0?c:null;});});
+  mkChart('qualYtdChart',{type:'line',data:{labels:lbl,datasets:qualVis.map(y=>({
+    label:String(y),data:ytdI[y],borderColor:C[y].b,backgroundColor:'transparent',borderWidth:2,tension:.4,pointRadius:3}))},options:baseOpts('Cumulative Incidents')});
+
+  // Table
+  const tb=document.getElementById('qualTbody');tb.innerHTML='';
+  MONTHS.slice(0,n).forEach((mo,i)=>{
+    const yoy24=D.quality.incidents[2023][i]>0?((D.quality.incidents[2024][i]-D.quality.incidents[2023][i])/D.quality.incidents[2023][i]*100).toFixed(1):'—';
+    const yoy25=D.quality.incidents[2024][i]>0?((D.quality.incidents[2025][i]-D.quality.incidents[2024][i])/D.quality.incidents[2024][i]*100).toFixed(1):'—';
+    const has26=i<4;
+    tb.innerHTML+=`<tr><td>${mo}</td>
+      <td>${D.quality.incidents[2023][i]}</td><td>${D.quality.rate[2023][i]}</td>
+      <td>${D.quality.incidents[2024][i]}</td><td class="${D.quality.rate[2024][i]>25?'bad':D.quality.rate[2024][i]<15?'good':'warn'}">${D.quality.rate[2024][i]}</td>
+      <td class="${yoy24>0?'bad':'good'}">${yoy24}%</td>
+      <td>${D.quality.incidents[2025][i]}</td><td class="${D.quality.rate[2025][i]>25?'bad':D.quality.rate[2025][i]<15?'good':'warn'}">${D.quality.rate[2025][i]}</td>
+      <td class="${yoy25>0?'bad':'good'}">${yoy25}%</td>
+      <td>${has26?D.quality.incidents[2026][i]:'—'}</td>
+      <td class="${has26?(D.quality.rate[2026][i]>25?'bad':D.quality.rate[2026][i]<15?'good':'warn'):''}">${has26?D.quality.rate[2026][i]:'—'}</td></tr>`;
+  });
+}
+
+// ═══════════════════ PRODUCTIVITY ═══════════════════
+function buildProd(){
+  const n=monthTo('prodMonthTo');
+  const lbl=MONTHS.slice(0,n);
+
+  mkChart('prodKgChart',{type:'bar',data:{labels:lbl,datasets:prodVis.map(y=>({
+    label:String(y),data:cutAt(D.prod.kg[y],n).map(v=>v?+(v/1e6).toFixed(3):null),
+    backgroundColor:C[y].bg,borderColor:C[y].b,borderWidth:2,borderRadius:4}))},options:baseOpts('M kg')});
+
+  mkChart('prodWasteChart',{type:'line',data:{labels:lbl,datasets:prodVis.map(y=>({
+    label:String(y),data:cutAt(D.prod.waste[y],n).map(v=>v>0?v:null),
+    borderColor:C[y].b,backgroundColor:C[y].bg,fill:false,borderWidth:2,tension:.4,pointRadius:3
+  })).concat([{label:`Alert (${wasteThr}%)`,data:Array(n).fill(wasteThr),borderColor:'rgba(247,201,72,.5)',borderWidth:1.5,borderDash:[5,4],pointRadius:0,backgroundColor:'transparent'}])},options:baseOpts('Waste %')});
+
+  mkChart('prodEffChart',{type:'bar',data:{labels:['2023','2024','2025'],datasets:[
+    {label:'kg / Direct Labor Hr',data:[79.37,77.26,64.24],backgroundColor:[C[2023].b,C[2024].b,C[2025].b],borderRadius:8},
+    {label:`Threshold (${effThr})`,data:[effThr,effThr,effThr],type:'line',borderColor:'rgba(255,255,255,.45)',borderWidth:1.5,borderDash:[5,4],pointRadius:0,backgroundColor:'transparent'}
+  ]},options:{...baseOpts('kg/hr'),plugins:{...baseOpts().plugins,datalabels:{display:true,color:'#fff',font:{size:11,weight:'bold'},anchor:'end',align:'top'}}}});
+
+  mkChart('prodAnnualChart',{type:'bar',data:{labels:['2023','2024','2025','2026 YTD'],datasets:[
+    {label:'Production (M kg)',data:[24.12,23.28,28.18,6.58],backgroundColor:[C[2023].b,C[2024].b,C[2025].b,C[2026].b],borderRadius:6,yAxisID:'y'},
+    {label:'Waste %',data:[3.03,3.62,3.52,2.90],type:'line',borderColor:'#f76e6e',borderWidth:2,tension:.3,pointRadius:5,yAxisID:'y2',backgroundColor:'transparent'}
+  ]},options:baseOpts('M kg','Waste %')});
+
+  mkChart('prodHoursChart',{type:'bar',data:{labels:lbl,datasets:prodVis.map(y=>({
+    label:String(y),data:cutAt(D.prod.hours[y],n).map(v=>v>0?+(v/1000).toFixed(1):null),
+    backgroundColor:C[y].bg,borderColor:C[y].b,borderWidth:2,borderRadius:4}))},options:baseOpts('k hours')});
+
+  const ytdK={};
+  YRS.forEach(y=>{let c=0;ytdK[y]=D.prod.kg[y].slice(0,n).map(v=>{if(v>0)c+=v;return c>0?+(c/1e6).toFixed(2):null;});});
+  mkChart('prodYtdChart',{type:'line',data:{labels:lbl,datasets:prodVis.map(y=>({
+    label:String(y),data:ytdK[y],borderColor:C[y].b,backgroundColor:'transparent',borderWidth:2,tension:.4,pointRadius:3}))},options:baseOpts('M kg cumulative')});
+
+  // Table
+  const tb=document.getElementById('prodTbody');tb.innerHTML='';
+  const fmt=v=>v>0?(v/1e6).toFixed(3)+'M':'—';
+  const fmtP=v=>v>0?v.toFixed(2)+'%':'—';
+  const cls=v=>v>wasteThr?'bad':v>3?'warn':v>0?'good':'';
+  MONTHS.slice(0,n).forEach((mo,i)=>{
+    const yoy24=D.prod.kg[2023][i]>0?((D.prod.kg[2024][i]-D.prod.kg[2023][i])/D.prod.kg[2023][i]*100).toFixed(1):'—';
+    const yoy25=D.prod.kg[2024][i]>0?((D.prod.kg[2025][i]-D.prod.kg[2024][i])/D.prod.kg[2024][i]*100).toFixed(1):'—';
+    tb.innerHTML+=`<tr><td>${mo}</td>
+      <td>${fmt(D.prod.kg[2023][i])}</td><td class="${cls(D.prod.waste[2023][i])}">${fmtP(D.prod.waste[2023][i])}</td>
+      <td>${fmt(D.prod.kg[2024][i])}</td><td class="${cls(D.prod.waste[2024][i])}">${fmtP(D.prod.waste[2024][i])}</td>
+      <td class="${+yoy24>0?'good':'bad'}">${yoy24}%</td>
+      <td>${fmt(D.prod.kg[2025][i])}</td><td class="${cls(D.prod.waste[2025][i])}">${fmtP(D.prod.waste[2025][i])}</td>
+      <td class="${+yoy25>0?'good':'bad'}">${yoy25}%</td>
+      <td>${i<3?fmt(D.prod.kg[2026][i]):'—'}</td>
+      <td class="${i<3?cls(D.prod.waste[2026][i]):''}">${i<3?fmtP(D.prod.waste[2026][i]):'—'}</td></tr>`;
+  });
+}
+
+// ═══════════════════ CSV UPLOAD ═══════════════════
+document.getElementById('fileUpload').addEventListener('change',function(e){
+  const file=e.target.files[0];if(!file)return;
+  const msg=document.getElementById('uploadMsg');
+  if(file.name.endsWith('.csv')){
+    Papa.parse(file,{header:true,dynamicTyping:true,complete:function(res){
+      let updated=0;
+      res.data.forEach(row=>{
+        const{section,year,month_index:mi,val1,val2,val3}=row;
+        if(!section||!year||mi===undefined||mi===null)return;
+        const y=+year,i=+mi;
+        if(section==='safety'){
+          D.safety.accidents[y][i]=val1;D.safety.hours[y][i]=val2;D.safety.rate[y][i]=val3;updated++;
+        } else if(section==='quality'){
+          D.quality.incidents[y][i]=val1;D.quality.kg[y][i]=val2;D.quality.rate[y][i]=val3;updated++;
+        } else if(section==='productivity'){
+          D.prod.kg[y][i]=val1;D.prod.waste[y][i]=val2;D.prod.hours[y][i]=val3;updated++;
+        }
+      });
+      buildSafety();buildQuality();buildProd();buildOverview();
+      const now=new Date();
+      document.getElementById('hBadgeDate').textContent=now.toLocaleDateString('en-GB',{month:'short',year:'numeric'});
+      document.getElementById('lastUpdated') && (document.getElementById('lastUpdated').textContent='Updated '+now.toLocaleDateString());
+      msg.textContent=`✓ ${updated} rows updated from ${file.name}`;
+      setTimeout(()=>msg.textContent='',5000);
+    }});
+  } else {
+    msg.textContent='⚠ Only .csv files supported for live update. Use Export CSV → edit → re-upload.';
+    setTimeout(()=>msg.textContent='',6000);
+  }
+  this.value='';
 });
 
-// ═══════════════ EXPORT CSV ═══════════════
-function exportCSV() {
-  const rows = [['Section','Year','Month','Value1','Value2','Value3']];
-  MONTHS.forEach((m,i) => {
-    [2023,2024,2025,2026].forEach(y => {
-      rows.push(['Safety',y,m, safety.accidents[y][i], safety.hours[y][i], safety.rate[y][i]]);
+function showCsvGuide(){document.getElementById('csvModal').style.display='flex';}
+
+// ═══════════════════ CSV EXPORT ═══════════════════
+function exportCSV(){
+  let rows=['section,year,month_index,val1,val2,val3'];
+  MONTHS.forEach((_,i)=>{
+    YRS.forEach(y=>{
+      rows.push(`safety,${y},${i},${D.safety.accidents[y][i]},${D.safety.hours[y][i]},${D.safety.rate[y][i]}`);
+      rows.push(`quality,${y},${i},${D.quality.incidents[y][i]},${D.quality.kg[y][i]},${D.quality.rate[y][i]}`);
+      rows.push(`productivity,${y},${i},${D.prod.kg[y][i]},${D.prod.waste[y][i]},${D.prod.hours[y][i]}`);
     });
   });
-  MONTHS.forEach((m,i) => {
-    [2023,2024,2025,2026].forEach(y => {
-      rows.push(['Quality',y,m, quality.incidents[y][i], quality.sellingKg[y][i], quality.rate[y][i]]);
-    });
-  });
-  MONTHS.forEach((m,i) => {
-    [2023,2024,2025,2026].forEach(y => {
-      rows.push(['Productivity',y,m, prod.kg[y][i], prod.wastePct[y][i], prod.totalHrs[y][i]]);
-    });
-  });
-  const csv = rows.map(r => r.join(',')).join('\n');
-  const a = document.createElement('a');
-  a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
-  a.download = 'KPI_Scorecard_Export.csv';
-  a.click();
+  const a=document.createElement('a');
+  a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(rows.join('\n'));
+  a.download='KPI_Scorecard_Data.csv';a.click();
 }
 
-// ═══════════════ INIT ═══════════════
+// ═══════════════════ INIT ═══════════════════
 Chart.register(ChartDataLabels);
-Chart.defaults.font.family = "'Segoe UI', system-ui, sans-serif";
+Chart.defaults.font.family="'Segoe UI',system-ui,sans-serif";
+// Disable datalabels globally by default (each chart opts in)
+Chart.defaults.plugins.datalabels.display=false;
 
-buildSafetyCharts();
-buildQualityCharts();
-buildProdCharts();
+buildOverview();
+buildSafety();
+buildQuality();
+buildProd();
 </script>
 </body>
 </html>
